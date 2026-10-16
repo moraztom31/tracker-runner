@@ -75,6 +75,14 @@
 </style>
 </head>
 <body>
+<div id="lock" hidden style="position:fixed;inset:0;z-index:99;background:var(--bg);display:flex;align-items:center;justify-content:center">
+  <form id="lockform" style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:24px;display:flex;flex-direction:column;gap:10px;min-width:260px">
+    <strong>Accès protégé</strong>
+    <input id="pw" type="password" placeholder="Mot de passe" autocomplete="current-password" style="font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px">
+    <button style="font:inherit;padding:8px;border-radius:6px;border:0;background:var(--accent);color:#fff;cursor:pointer">Entrer</button>
+    <span id="lockerr" style="color:#c0392b;font-size:13px" aria-live="polite"></span>
+  </form>
+</div>
 <main>
   <header>
     <h1>Offres de stage</h1>
@@ -344,10 +352,36 @@ function alertNew(added) {
   }
 }
 
+const b64 = (t) => Uint8Array.from(atob(t), (c) => c.charCodeAt(0));
+let keyCache = null;
+async function decrypt(enc, pw) {
+  const ck = enc.salt + pw;
+  if (!keyCache || keyCache.id !== ck) {
+    const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveKey"]);
+    const key = await crypto.subtle.deriveKey({ name: "PBKDF2", salt: b64(enc.salt), iterations: enc.iter, hash: "SHA-256" },
+      base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+    keyCache = { id: ck, key };
+  }
+  const buf = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64(enc.iv) }, keyCache.key, b64(enc.ct));
+  return JSON.parse(new TextDecoder().decode(buf));
+}
+function askPassword(msg) {
+  $("lock").hidden = false; $("lockerr").textContent = msg || ""; $("pw").focus();
+}
+$("lockform").addEventListener("submit", (e) => {
+  e.preventDefault();
+  store.set("pw", $("pw").value); $("pw").value = ""; $("lock").hidden = true; generatedAt = null; load();
+});
+
 async function load() {
   try {
-    const r = await fetch("jobs.json?t=" + Date.now(), { cache: "no-store" });
-    const d = await r.json();
+    const r = await fetch("jobs.enc?t=" + Date.now(), { cache: "no-store" });
+    const enc = await r.json();
+    const pw = store.get("pw", "");
+    if (!pw) { askPassword(); return; }
+    let d;
+    try { d = await decrypt(enc, pw); }
+    catch (e) { store.set("pw", ""); askPassword("Mot de passe incorrect"); return; }
     if (d.generated_at === generatedAt) { updateMeta(); return; }
     generatedAt = d.generated_at; jobs = d.jobs;
     const ids = new Set(jobs.map((j) => j.id));
@@ -358,7 +392,7 @@ async function load() {
     known = ids;
     fillCompanies(); fillLocations(); locLabel(); updateMeta(); render();
   } catch (e) {
-    if (!known) $("meta").textContent = "Impossible de charger jobs.json. Lance d'abord le workflow « scan » sur GitHub.";
+    if (!known) $("meta").textContent = "Impossible de charger les offres. Lance d'abord le workflow « scan » sur GitHub.";
   }
 }
 load();
