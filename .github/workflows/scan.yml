@@ -57,8 +57,12 @@ jobs:
           git add data docs/jobs.json
           if ! git diff --cached --quiet; then
             git commit -q -m "maj offres"
-            git pull --rebase -q
-            git push -q
+            # le repo privé peut recevoir un autre commit entre-temps : on réessaie quelques fois
+            for i in 1 2 3 4 5; do
+              git pull --rebase -q && git push -q && break
+              [ "$i" = 5 ] && { echo "push impossible après 5 essais"; exit 1; }
+              sleep $((i * 2))
+            done
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
