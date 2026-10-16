@@ -66,10 +66,15 @@ jobs:
       # Seulement s'il y a du nouveau, ou lors d'un lancement manuel (pour publier une modification de la page).
       - name: Publication du site (GitHub Pages)
         if: steps.commit.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
+        env:
+          SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
         run: |
           git clone -q "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" site
-          mkdir -p site/docs
+          rm -rf site/docs && mkdir -p site/docs
           cp -r app/docs/. site/docs/
+          rm -f site/docs/jobs.json
+          pip install -q cryptography
+          python app/runner/encrypt_site.py app/docs/jobs.json site/docs/jobs.enc
           cd site
           git config user.name "stage-tracker"
           git config user.email "bot@users.noreply.github.com"
