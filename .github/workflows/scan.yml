@@ -5,7 +5,8 @@
 # À copier dans le repo public sous : .github/workflows/scan.yml  (voir runner/README.md)
 name: scan
 on:
-  # PHASE DE TEST : lancement manuel uniquement. Le déclenchement planifié (filet de sécurité) sera réactivé après validation.
+  schedule:
+    - cron: "*/5 * * * *"   # filet de sécurité ; le rythme réel vient de cron-job.org (workflow_dispatch)
   workflow_dispatch:
     inputs:
       push_private:
@@ -29,7 +30,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: moraztom31/TRacker
-          ref: claude/github-repository-access-aoguba   # TEMPORAIRE (test) : à retirer une fois la branche fusionnée dans main
           token: ${{ secrets.PRIVATE_REPO_TOKEN }}
           path: app
 
