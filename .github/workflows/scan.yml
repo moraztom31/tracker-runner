@@ -7,6 +7,11 @@ name: scan
 on:
   # PHASE DE TEST : lancement manuel uniquement. Le déclenchement planifié (filet de sécurité) sera réactivé après validation.
   workflow_dispatch:
+    inputs:
+      push_private:
+        description: "Enregistrer les données dans le repo privé (décocher pour un simple test de publication)"
+        type: boolean
+        default: true
 
 concurrency:
   group: scan
@@ -44,6 +49,7 @@ jobs:
 
       - name: Enregistrement des données dans le repo privé
         id: commit
+        if: github.event_name != 'workflow_dispatch' || inputs.push_private
         working-directory: app
         run: |
           git config user.name "stage-tracker"
