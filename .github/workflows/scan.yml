@@ -1,0 +1,75 @@
+# Robot de scan, hébergé dans un repo PUBLIC (minutes GitHub Actions illimitées). Ce repo ne contient que :
+#   - ce fichier de workflow,
+#   - le dossier docs/ (le site publié par GitHub Pages : page web + offres, rien d'autre).
+# Le code, la configuration, la liste des sources et les données internes restent dans le repo PRIVÉ.
+# À copier dans le repo public sous : .github/workflows/scan.yml  (voir runner/README.md)
+name: scan
+on:
+  # PHASE DE TEST : lancement manuel uniquement. Le déclenchement planifié (filet de sécurité) sera réactivé après validation.
+  workflow_dispatch:
+
+concurrency:
+  group: scan
+  cancel-in-progress: false
+
+permissions:
+  contents: write   # publier docs/ dans ce repo (GitHub Pages) ; le repo privé est lu et écrit avec le jeton PRIVATE_REPO_TOKEN
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Récupération du code privé
+        uses: actions/checkout@v4
+        with:
+          repository: moraztom31/TRacker
+          ref: claude/github-repository-access-aoguba   # TEMPORAIRE (test) : à retirer une fois la branche fusionnée dans main
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          path: app
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: app/requirements.txt
+
+      - run: pip install -q -r app/requirements.txt
+
+      - name: "Scan (logs muets, ce repo est public)"
+        working-directory: app
+        env:
+          TRACKER_QUIET: "1"
+        run: python -m tracker.main
+
+      - name: Enregistrement des données dans le repo privé
+        id: commit
+        working-directory: app
+        run: |
+          git config user.name "stage-tracker"
+          git config user.email "bot@users.noreply.github.com"
+          git add data docs/jobs.json
+          if ! git diff --cached --quiet; then
+            git commit -q -m "maj offres"
+            git pull --rebase -q
+            git push -q
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Publication du site : on copie docs/ du repo privé dans CE repo public, servi par GitHub Pages (main /docs).
+      # Seulement s'il y a du nouveau, ou lors d'un lancement manuel (pour publier une modification de la page).
+      - name: Publication du site (GitHub Pages)
+        if: steps.commit.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          git clone -q "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" site
+          mkdir -p site/docs
+          cp -r app/docs/. site/docs/
+          cd site
+          git config user.name "stage-tracker"
+          git config user.email "bot@users.noreply.github.com"
+          git add docs
+          if ! git diff --cached --quiet; then
+            git commit -q -m "maj offres"
+            git pull --rebase -q
+            git push -q
+          fi
