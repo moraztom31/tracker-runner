@@ -1,0 +1,50 @@
+name: probe
+on: workflow_dispatch
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: moraztom31/TRacker
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          path: app
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q -r app/requirements.txt
+      - name: BNP
+        working-directory: app
+        run: |
+          python - <<'EOF'
+          import re
+          from bs4 import BeautifulSoup
+          from tracker.sources import _get
+          base='https://group.bnpparibas/emploi-carriere/toutes-offres-emploi/stage'
+          tot=0
+          for p in range(1,61):
+              u=base if p==1 else f'{base}?page={p}'
+              try:
+                  r=_get(u,'chrome124')
+              except Exception as e:
+                  print('page',p,'ERR',str(e)[:80]); break
+              s=BeautifulSoup(r.text,'html.parser')
+              links=[a['href'] for a in s.find_all('a',href=True) if '/emploi-carriere/offre-emploi/' in a['href']]
+              tot+=len(set(links))
+              txt=r.text.lower()
+              hit='ultra-high' in txt or 'ultra high' in txt or 'ifswmma' in txt
+              print('page',p,'liens',len(set(links)),'MATCH' if hit else '')
+              if hit:
+                  for l in set(links):
+                      if 'ultra' in l or 'investment-solutions' in l: print('   ',l)
+              if not links: break
+          print('total liens',tot)
+          # recherche directe
+          for q in ['ultra high net worth','Investment Solutions']:
+              try:
+                  r=_get('https://group.bnpparibas/emploi-carriere/toutes-offres-emploi?keywords='+q.replace(' ','+'),'chrome124')
+                  s=BeautifulSoup(r.text,'html.parser')
+                  ls=sorted({a['href'] for a in s.find_all('a',href=True) if '/offre-emploi/' in a['href']})
+                  print('recherche',q,len(ls)); [print('   ',x) for x in ls if 'ultra' in x or 'solution' in x][:5]
+              except Exception as e: print('recherche ERR',str(e)[:80])
+          EOF
