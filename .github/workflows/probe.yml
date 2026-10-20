@@ -13,33 +13,33 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -q -r app/requirements.txt
-      - name: BNP
+      - name: bwelcome
         working-directory: app
         run: |
           python - <<'EOF'
           import re
           from bs4 import BeautifulSoup
           from tracker.sources import _get
-          H='https://group.bnpparibas'
-          for sm in ['/sitemap.xml','/sitemap_index.xml']:
+          B='https://bwelcome.hr.bnpparibas'
+          def show(u, imp='chrome124', n=600):
               try:
-                  t=_get(H+sm,'chrome124').text
-                  print(sm,len(t),'octets')
-                  subs=re.findall(r'<loc>([^<]+)</loc>',t)
-                  print('  entrees',len(subs),subs[:5])
-                  for u in subs:
-                      if 'offre' in u or 'emploi' in u or 'job' in u:
-                          try:
-                              tt=_get(u,'chrome124').text
-                              m=re.findall(r'<loc>([^<]*(?:ultra|high-net|investment-solutions)[^<]*)</loc>',tt)
-                              print('  sous-plan',u,len(tt),'matchs',m[:5])
-                          except Exception as e: print('  ERR',u,str(e)[:60])
-                  m=re.findall(r'<loc>([^<]*(?:ultra|high-net|investment-solutions)[^<]*)</loc>',t)
-                  print('  matchs',m[:5])
-              except Exception as e: print(sm,'ERR',str(e)[:80])
-          r=_get(H+'/emploi-carriere/toutes-offres-emploi/stage','chrome124')
-          s=BeautifulSoup(r.text,'html.parser')
-          for f in s.find_all('form'):
-              print('form',f.get('action'),[i.get('name') for i in f.find_all(['input','select'])][:12])
-          print('pagination',[a['href'] for a in s.find_all('a',href=True) if 'page=' in a['href']][-4:])
+                  r=_get(u,imp)
+                  print('==',u,r.status_code,len(r.text),r.headers.get('content-type'))
+                  return r
+              except Exception as e:
+                  print('==',u,'ERR',str(e)[:100]); return None
+          r=show(B+'/fr_FR/externalcareers/JobDetails?jobId=104697')
+          if r:
+              s=BeautifulSoup(r.text,'html.parser')
+              print('title:',s.title.string if s.title else None)
+              print('h1:',[h.get_text(' ',strip=True)[:120] for h in s.find_all(['h1','h2'])][:4])
+              print('scripts:',[x['src'][:100] for x in s.find_all('script',src=True)][:10])
+              print('liens:',sorted({a['href'][:110] for a in s.find_all('a',href=True) if 'externalcareers' in a['href']})[:15])
+              for m in re.findall(r'(?:api|ajax|search|jobs?)[^"\' ]{0,80}', r.text)[:15]: print('  ref',m)
+          for p in ['/fr_FR/externalcareers/SearchJobs','/fr_FR/externalcareers/SearchJobs/stage','/fr_FR/externalcareers','/fr_FR/externalcareers/JobList','/fr_FR/externalcareers/Jobs','/sitemap.xml','/robots.txt']:
+              r=show(B+p)
+              if r:
+                  s=BeautifulSoup(r.text,'html.parser')
+                  ids=sorted(set(re.findall(r'jobId=(\d+)',r.text)))
+                  print('   jobIds',len(ids),ids[:8],'title:',s.title.string[:80] if s.title and s.title.string else None)
           EOF
