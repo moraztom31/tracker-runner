@@ -18,22 +18,23 @@ jobs:
         run: |
           python - <<'EOF'
           import re
+          from concurrent.futures import ThreadPoolExecutor
+          from bs4 import BeautifulSoup
           from tracker.sources import _get
           B='https://bwelcome.hr.bnpparibas'
-          def locs(u):
-              t=_get(u,'chrome124').text
-              print('==',u,len(t),t[:200].replace('\n',' '))
-              return re.findall(r'<loc>\s*([^<]+?)\s*</loc>',t), t
-          L,_=locs(B+'/externalcareers/sitemap_index.xml')
-          print('index:',len(L),L[:10])
-          allj=[]
-          for u in L[:20]:
+          t=_get(B+'/fr_FR/externalcareers/sitemap.xml','chrome124').text
+          names=[l.rsplit('/',1)[-1] for l in re.findall(r'<loc>\s*([^<]+?)\s*</loc>',t)]
+          print('pages:',names)
+          def job(i):
               try:
-                  l,t=locs(u)
-                  print('  sous-plan',len(l),l[:3])
-                  allj+=l
-              except Exception as e: print('  ERR',u,str(e)[:80])
-          jd=[l for l in allj if 'JobDetail' in l or 'jobId' in l]
-          print('offres dans les plans:',len(jd)); print(jd[:5])
-          print('104697:',[l for l in allj if '104697' in l][:3])
+                  r=_get(f'{B}/fr_FR/externalcareers/JobDetails?jobId={i}','chrome124')
+              except Exception as e:
+                  return i,'ERR '+str(e)[:40]
+              s=BeautifulSoup(r.text,'html.parser')
+              h=[x.get_text(' ',strip=True) for x in s.find_all('h2')]
+              txt=s.get_text(' ',strip=True)
+              m=re.search(r'Type de contrat\s*(\S+(?: \S+)?)',txt)
+              return i,(h[0][:70] if h else (s.title.string or '').strip()[:70]),(m.group(1) if m else '?')
+          with ThreadPoolExecutor(8) as ex:
+              for res in ex.map(job,range(104680,104716)): print(res)
           EOF
