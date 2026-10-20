@@ -312,7 +312,8 @@ function render() {
   });
   $("empty").hidden = rows.length > 0; list.hidden = rows.length === 0;
 }
-function isNew(j) { return j.active && (!lastSeen ? false : j.first_seen > lastSeen) && !statuses[j.id]; }
+const freshIds = new Set();  // offres annoncées par la bannière : badgées et affichées par « Nouvelles uniquement » même si la date de dernière visite est plus récente
+function isNew(j) { return j.active && !statuses[j.id] && (freshIds.has(j.id) || (lastSeen ? j.first_seen > lastSeen : false)); }
 
 let known = null, generatedAt = null;
 const baseTitle = document.title;
@@ -390,7 +391,7 @@ async function load() {
     if (known) {
       // alerte seulement pour une vraie nouveauté (vue depuis le dernier chargement) dans un lieu non masqué ; pas pour un rattrapage d'historique
       const added = jobs.filter((j) => j.active && !known.has(j.id) && matchLoc(j) && (!prevGen || j.first_seen > prevGen));
-      if (added.length) alertNew(added);
+      if (added.length) { added.forEach((j) => freshIds.add(j.id)); alertNew(added); }
     }
     known = ids;
     fillCompanies(); fillLocations(); locLabel(); updateMeta(); render();
@@ -413,7 +414,7 @@ $("locq").addEventListener("input", fillLocations);
 $("locclear").onclick = () => { locSel.clear(); saveLocs(); locLabel(); fillLocations(); render(); };
 document.addEventListener("click", (e) => { if (!$("locf").contains(e.target)) $("locf").open = false; });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && $("locf").open) { $("locf").open = false; $("locsum").focus(); } });
-$("seen").onclick = () => { lastSeen = new Date().toISOString().replace(/\.\d+Z$/, "Z"); store.set("lastSeen", lastSeen); $("banner").hidden = true; render(); updateMeta(); };
+$("seen").onclick = () => { lastSeen = new Date().toISOString().replace(/\.\d+Z$/, "Z"); store.set("lastSeen", lastSeen); freshIds.clear(); $("banner").hidden = true; render(); updateMeta(); };
 if (!lastSeen) { lastSeen = new Date().toISOString().replace(/\.\d+Z$/, "Z"); store.set("lastSeen", lastSeen); }
 </script>
 </body>
