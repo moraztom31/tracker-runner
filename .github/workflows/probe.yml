@@ -18,28 +18,17 @@ jobs:
         run: |
           python - <<'EOF'
           import re
-          from bs4 import BeautifulSoup
           from tracker.sources import _get
           B='https://bwelcome.hr.bnpparibas'
-          def show(u, imp='chrome124', n=600):
-              try:
-                  r=_get(u,imp)
-                  print('==',u,r.status_code,len(r.text),r.headers.get('content-type'))
-                  return r
-              except Exception as e:
-                  print('==',u,'ERR',str(e)[:100]); return None
-          r=show(B+'/fr_FR/externalcareers/JobDetails?jobId=104697')
-          if r:
-              s=BeautifulSoup(r.text,'html.parser')
-              print('title:',s.title.string if s.title else None)
-              print('h1:',[h.get_text(' ',strip=True)[:120] for h in s.find_all(['h1','h2'])][:4])
-              print('scripts:',[x['src'][:100] for x in s.find_all('script',src=True)][:10])
-              print('liens:',sorted({a['href'][:110] for a in s.find_all('a',href=True) if 'externalcareers' in a['href']})[:15])
-              for m in re.findall(r'(?:api|ajax|search|jobs?)[^"\' ]{0,80}', r.text)[:15]: print('  ref',m)
-          for p in ['/fr_FR/externalcareers/SearchJobs','/fr_FR/externalcareers/SearchJobs/stage','/fr_FR/externalcareers','/fr_FR/externalcareers/JobList','/fr_FR/externalcareers/Jobs','/sitemap.xml','/robots.txt']:
-              r=show(B+p)
-              if r:
-                  s=BeautifulSoup(r.text,'html.parser')
-                  ids=sorted(set(re.findall(r'jobId=(\d+)',r.text)))
-                  print('   jobIds',len(ids),ids[:8],'title:',s.title.string[:80] if s.title and s.title.string else None)
+          print(_get(B+'/robots.txt','chrome124').text[:1500])
+          t=_get(B+'/sitemap.xml','chrome124').text
+          print('--- sitemap debut'); print(t[:700])
+          locs=re.findall(r'<loc>\s*([^<]+?)\s*</loc>',t)
+          print('loc',len(locs))
+          jd=[l for l in locs if 'JobDetail' in l]
+          print('JobDetail',len(jd)); print(jd[:5])
+          print('contient 104697:',[l for l in locs if '104697' in l][:3])
+          print('sous-plans:',[l for l in locs if l.endswith('.xml')][:10])
+          from collections import Counter
+          print(Counter(re.sub(r'/[^/]*$','',l.split('bnpparibas',1)[-1])[:50] for l in locs).most_common(8))
           EOF
