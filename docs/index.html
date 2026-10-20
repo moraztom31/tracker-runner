@@ -384,10 +384,12 @@ async function load() {
     try { d = await decrypt(enc, pw); }
     catch (e) { store.set("pw", ""); askPassword("Mot de passe incorrect"); return; }
     if (d.generated_at === generatedAt) { updateMeta(); return; }
+    const prevGen = generatedAt;
     generatedAt = d.generated_at; jobs = d.jobs;
     const ids = new Set(jobs.map((j) => j.id));
     if (known) {
-      const added = jobs.filter((j) => j.active && !known.has(j.id));
+      // alerte seulement pour une vraie nouveauté (vue depuis le dernier chargement) dans un lieu non masqué ; pas pour un rattrapage d'historique
+      const added = jobs.filter((j) => j.active && !known.has(j.id) && matchLoc(j) && (!prevGen || j.first_seen > prevGen));
       if (added.length) alertNew(added);
     }
     known = ids;
