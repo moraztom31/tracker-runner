@@ -17,24 +17,23 @@ jobs:
         working-directory: app
         run: |
           python - <<'EOF'
-          import re
-          from concurrent.futures import ThreadPoolExecutor
+          import re, time
           from bs4 import BeautifulSoup
           from tracker.sources import _get
-          B='https://bwelcome.hr.bnpparibas'
-          t=_get(B+'/fr_FR/externalcareers/sitemap.xml','chrome124').text
-          names=[l.rsplit('/',1)[-1] for l in re.findall(r'<loc>\s*([^<]+?)\s*</loc>',t)]
-          print('pages:',names)
-          def job(i):
+          B='https://bwelcome.hr.bnpparibas/fr_FR/externalcareers/'
+          for p in ['WidgetOpenPositions','WidgetOpenPositions?jobFamily=','WidgetRelatedJobs?jobId=104697','WidgetRecommendations']:
               try:
-                  r=_get(f'{B}/fr_FR/externalcareers/JobDetails?jobId={i}','chrome124')
-              except Exception as e:
-                  return i,'ERR '+str(e)[:40]
-              s=BeautifulSoup(r.text,'html.parser')
-              h=[x.get_text(' ',strip=True) for x in s.find_all('h2')]
-              txt=s.get_text(' ',strip=True)
-              m=re.search(r'Type de contrat\s*(\S+(?: \S+)?)',txt)
-              return i,(h[0][:70] if h else (s.title.string or '').strip()[:70]),(m.group(1) if m else '?')
-          with ThreadPoolExecutor(8) as ex:
-              for res in ex.map(job,range(104680,104716)): print(res)
+                  r=_get(B+p,'chrome124')
+                  s=BeautifulSoup(r.text,'html.parser')
+                  ids=sorted(set(re.findall(r'jobId=(\d+)',r.text)))
+                  print('==',p,r.status_code,len(r.text),'jobIds',len(ids),ids[:10])
+                  print('   texte:',s.get_text(' ',strip=True)[:300])
+                  print('   liens:',[a['href'][:100] for a in s.find_all('a',href=True)][:8])
+              except Exception as e: print('==',p,'ERR',str(e)[:80])
+          print('--- séquentiel lent')
+          for i in range(104694,104700):
+              try:
+                  r=_get(B+f'JobDetails?jobId={i}','chrome124'); print(i,'OK',len(r.text))
+              except Exception as e: print(i,str(e)[:40])
+              time.sleep(1.5)
           EOF
