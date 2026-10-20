@@ -20,15 +20,20 @@ jobs:
           import re
           from tracker.sources import _get
           B='https://bwelcome.hr.bnpparibas'
-          print(_get(B+'/robots.txt','chrome124').text[:1500])
-          t=_get(B+'/sitemap.xml','chrome124').text
-          print('--- sitemap debut'); print(t[:700])
-          locs=re.findall(r'<loc>\s*([^<]+?)\s*</loc>',t)
-          print('loc',len(locs))
-          jd=[l for l in locs if 'JobDetail' in l]
-          print('JobDetail',len(jd)); print(jd[:5])
-          print('contient 104697:',[l for l in locs if '104697' in l][:3])
-          print('sous-plans:',[l for l in locs if l.endswith('.xml')][:10])
-          from collections import Counter
-          print(Counter(re.sub(r'/[^/]*$','',l.split('bnpparibas',1)[-1])[:50] for l in locs).most_common(8))
+          def locs(u):
+              t=_get(u,'chrome124').text
+              print('==',u,len(t),t[:200].replace('\n',' '))
+              return re.findall(r'<loc>\s*([^<]+?)\s*</loc>',t), t
+          L,_=locs(B+'/externalcareers/sitemap_index.xml')
+          print('index:',len(L),L[:10])
+          allj=[]
+          for u in L[:20]:
+              try:
+                  l,t=locs(u)
+                  print('  sous-plan',len(l),l[:3])
+                  allj+=l
+              except Exception as e: print('  ERR',u,str(e)[:80])
+          jd=[l for l in allj if 'JobDetail' in l or 'jobId' in l]
+          print('offres dans les plans:',len(jd)); print(jd[:5])
+          print('104697:',[l for l in allj if '104697' in l][:3])
           EOF
