@@ -7,46 +7,42 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -q requests beautifulsoup4 curl_cffi
-      - name: sites
+      - run: pip install -q requests curl_cffi
+      - name: phenom
         run: |
           python - <<'EOF'
           import re, json
-          from collections import Counter
-          from bs4 import BeautifulSoup
           from curl_cffi import requests as cr
-          URLS = {
-           'Candriam':'https://jobs.candriam.com/accueil.aspx?LCID=1036',
-           'DNCA':'https://www.dnca-investments.com/carrieres',
-           'Comgest':'https://www.comgest.com/fr/about-us/nos-collaborateurs/carrieres/stages',
-           'La Francaise':'https://careers.la-francaise.com/fr/annonces',
-           'Ofi Invest':'https://ofi-invest.com/fr/carriere/nos-offres',
-           'Pictet':'https://career012.successfactors.eu/career?company=banquepict&career_ns=job_listing_summary&navBarLevel=JOB_SEARCH',
-           'Allianz':'https://careers.allianz.com/global/en/search-results',
-           'Generali':'https://carrieres.generali.fr/search/?q=&q2=&alertId=&locationsearch=&title=&department=&location=',
-           'Janus Henderson':'https://jobs.janushenderson.com/search/?createNewAlert=false&q=',
-           'Franklin Templeton':'https://careers.franklintempleton.com/jobs',
-           'CIC':'https://recrutement.cic.fr/fr/nos_offres.html',
-           'Euronext':'https://www.euronext.com/fr/about/careers/vacancies',
-           'Quintet':'https://www.quintet.com/en-gb/vacancies',
-           'Leonteq':'https://www.leonteq.com/about-us/careers/open-positions?language_id=1',
-          }
-          HINTS=['phenom','phApp','talentsoft','successfactors','jobs2web','icims','taleo','workday','smartrecruiters','avature','recruitee','teamtailor','greenhouse','lever.co','oraclecloud','cornerstone','eolia','beetween','hrmanager','lumesse','sap','jobteaser','welcometothejungle','flatchr','digitalrecruiters','jobaffinity','cvwarehouse','altays','ashby','join.com','personio','softgarden','umantis','abacus']
-          for name,u in URLS.items():
-              print('=====',name,u[:90])
-              try:
-                  r=cr.get(u,impersonate='chrome124',timeout=30,allow_redirects=True)
-              except Exception as e:
-                  print('  ERR',str(e)[:100]); continue
-              t=r.text; s=BeautifulSoup(t,'html.parser')
-              print('  statut',r.status_code,len(t),'url finale',r.url[:100])
-              print('  titre:',(s.title.string or '').strip()[:90] if s.title else None)
-              low=t.lower()
-              print('  indices:',[h for h in HINTS if h.lower() in low][:10])
-              links=[a['href'] for a in s.find_all('a',href=True)]
-              jl=[l for l in links if re.search(r'job|offre|annonce|vacanc|position|career|emploi|stage',l,re.I)]
-              print('  liens offres:',len(jl),Counter(re.sub(r'[0-9a-f-]{6,}|\d+','#',l)[:70] for l in jl).most_common(5))
-              print('  json-ld JobPosting:',t.count('JobPosting'),'| ddo:',('eagerLoadRefineSearch' in t),'| next_data:',('__NEXT_DATA__' in t))
-              body=s.get_text(' ',strip=True)
-              print('  texte:',body[:220])
+          def ddo(url):
+              t=cr.get(url,impersonate='chrome124',timeout=30).text
+              m=re.search(r'phApp\.ddo\s*=\s*(\{.*?\});\s*phApp\.',t,re.S)
+              if not m:
+                  m=re.search(r'phApp\.ddo\s*=\s*(\{.*?\})\s*;',t,re.S)
+              return t,(json.loads(m.group(1)) if m else None)
+          for name,url in [('Allianz','https://careers.allianz.com/global/en/search-results?keywords=intern'),('Franklin','https://careers.franklintempleton.com/jobs?keywords=intern')]:
+              print('=====',name)
+              t,d=ddo(url)
+              print('ddo trouvé:',bool(d), 'taille',len(t))
+              if not d: 
+                  i=t.find('phApp.ddo'); print(t[i:i+400]); continue
+              print('clés ddo:',list(d.keys())[:20])
+              e=d.get('eagerLoadRefineSearch') or {}
+              print('clés eager:',list(e.keys()))
+              data=e.get('data') or {}
+              print('clés data:',list(data.keys()),'totalHits',e.get('totalHits'),data.get('totalHits'))
+              jobs=data.get('jobs') or []
+              print('nb jobs page:',len(jobs))
+              if jobs: print(json.dumps(jobs[0],ensure_ascii=False)[:900])
+              print('clés racine page:',[k for k in d.keys() if k in('siteConfig','refineSearch','widgetsConfig')], 'pageId', (d.get('siteConfig') or {}).get('pageId'))
+              for k in ('apiAndToken','apiEndPoint'): 
+                  if k in d: print(k,str(d[k])[:200])
+              # widgets API
+              base=url.split('/search-results')[0].split('/jobs')[0]
+              base_host=re.match(r'https://[^/]+',url).group(0)
+              for path in ['/widgets']:
+                  payload={"lang":"en_global","deviceType":"desktop","country":"global","pageName":"search-results","ddoKey":"refineSearch","sortBy":"","subsearch":"","from":0,"jobs":True,"counts":True,"all_fields":["category","country","city","type"],"size":10,"clearAll":False,"jdsource":"facets","isSliderEnable":False,"pageId":"page11","siteType":"external","keywords":"intern","global":True,"selected_fields":{},"locationData":{}}
+                  try:
+                      r=cr.post(base_host+path,json=payload,impersonate='chrome124',timeout=30)
+                      print('widgets',r.status_code,r.text[:300].replace('\n',' '))
+                  except Exception as ex: print('widgets ERR',str(ex)[:100])
           EOF
