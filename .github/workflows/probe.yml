@@ -1,0 +1,38 @@
+name: probe
+on: workflow_dispatch
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: moraztom31/TRacker
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          ref: claude/github-repository-access-aoguba
+          path: app
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q -r app/requirements.txt
+      - name: test
+        working-directory: app
+        run: |
+          python - <<'EOF'
+          import yaml, re
+          from bs4 import BeautifulSoup
+          from tracker.sources import COLLECTORS, _get
+          from tracker.filters import matches
+          cfg=yaml.safe_load(open('config.yaml',encoding='utf-8'))
+          for kind,lst in cfg['sources'].items():
+              for c in (lst or []):
+                  if c['company'] not in ('Crédit Mutuel','CIC'): continue
+                  try: jobs=COLLECTORS[kind](c)
+                  except Exception as e: print(f"[KO] {c['company']} : {type(e).__name__} {str(e)[:100]}"); continue
+                  kept=[j for j in jobs if matches(j,cfg['filters'])]
+                  print(f"[OK] {c['company']:<14} {len(jobs):>3} lues, {len(kept):>3} gardées")
+                  for j in (kept or jobs)[:3]: print('      ',j['title'][:62],'|',j.get('location','')[:44],'|',j['url'][-40:])
+          r=_get('https://recrutement.creditmutuel.fr/fr/nos_offres.html'); s=BeautifulSoup(r.text,'html.parser')
+          t=s.get_text(' ',strip=True)
+          print('total annoncé:',re.search(r'(\d+)\s*offres?',t).group(0) if re.search(r'(\d+)\s*offres?',t) else None)
+          print('pagination:',sorted({a['href'][:60] for a in s.find_all('a',href=True) if re.search(r'nos_offres\d',a['href'])})[:5])
+          EOF
