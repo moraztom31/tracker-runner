@@ -1,0 +1,31 @@
+name: probe
+on: workflow_dispatch
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q requests beautifulsoup4 curl_cffi
+      - name: patrimonia
+        run: |
+          python - <<'EOF'
+          import re
+          from bs4 import BeautifulSoup
+          from curl_cffi import requests as cr
+          U='https://www.patrimonia.fr/fr/liste-des-exposants'
+          r=cr.get(U,impersonate='chrome124',timeout=30)
+          print('statut',r.status_code,len(r.text))
+          s=BeautifulSoup(r.text,'html.parser')
+          print('titre:',s.title.string.strip() if s.title and s.title.string else None)
+          print('h1/h2:',[h.get_text(' ',strip=True)[:60] for h in s.find_all(['h1','h2'])][:6])
+          pag=sorted({a['href'] for a in s.find_all('a',href=True) if re.search(r'page|p=|offset|start',a['href'],re.I)})
+          print('liens pagination:',pag[:15])
+          links=[a['href'] for a in s.find_all('a',href=True)]
+          from collections import Counter
+          print('motifs de liens:',Counter(re.sub(r'[^/]+$','*',l)[:70] for l in links).most_common(10))
+          print('scripts:',[x['src'][:90] for x in s.find_all('script',src=True)][:8])
+          for m in re.findall(r'(?:api|ajax|json|graphql)[^"\' <>]{0,80}',r.text)[:12]: print('  ref',m)
+          print('extrait:',s.get_text(' ',strip=True)[:500])
+          EOF
