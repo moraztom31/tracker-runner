@@ -11,21 +11,28 @@ jobs:
       - name: patrimonia
         run: |
           python - <<'EOF'
-          import re
+          import re, json
           from bs4 import BeautifulSoup
           from curl_cffi import requests as cr
-          U='https://www.patrimonia.fr/fr/liste-des-exposants'
-          r=cr.get(U,impersonate='chrome124',timeout=30)
-          print('statut',r.status_code,len(r.text))
-          s=BeautifulSoup(r.text,'html.parser')
-          print('titre:',s.title.string.strip() if s.title and s.title.string else None)
-          print('h1/h2:',[h.get_text(' ',strip=True)[:60] for h in s.find_all(['h1','h2'])][:6])
-          pag=sorted({a['href'] for a in s.find_all('a',href=True) if re.search(r'page|p=|offset|start',a['href'],re.I)})
-          print('liens pagination:',pag[:15])
-          links=[a['href'] for a in s.find_all('a',href=True)]
-          from collections import Counter
-          print('motifs de liens:',Counter(re.sub(r'[^/]+$','*',l)[:70] for l in links).most_common(10))
-          print('scripts:',[x['src'][:90] for x in s.find_all('script',src=True)][:8])
-          for m in re.findall(r'(?:api|ajax|json|graphql)[^"\' <>]{0,80}',r.text)[:12]: print('  ref',m)
-          print('extrait:',s.get_text(' ',strip=True)[:500])
+          B='https://www.patrimonia.fr/fr/liste-des-exposants'
+          seen={}
+          for p in range(1,23):
+              u=B if p==1 else f'{B}?guests_list_35237_page={p}'
+              r=cr.get(u,impersonate='chrome124',timeout=30)
+              s=BeautifulSoup(r.text,'html.parser')
+              n=0
+              for a in s.find_all('a',href=True):
+                  h=a['href']
+                  if re.match(r'^(https://www\.patrimonia\.fr)?/fr/liste-des-exposants/[^/?#]+$',h):
+                      slug=h.rstrip('/').rsplit('/',1)[-1]
+                      name=' | '.join(a.stripped_strings)[:90]
+                      card=a
+                      for _ in range(4):
+                          if card.parent and len(list(card.parent.stripped_strings))<=14: card=card.parent
+                      extra=' / '.join(x for x in card.stripped_strings if x not in a.stripped_strings)[:120]
+                      if slug not in seen: seen[slug]=(p,name,extra); n+=1
+              print('page',p,r.status_code,'nouveaux exposants',n)
+              if n==0 and p>20: break
+          print('TOTAL',len(seen))
+          for slug,(p,name,extra) in seen.items(): print(f'{p:>2} | {name} | {extra}')
           EOF
