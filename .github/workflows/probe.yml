@@ -4,52 +4,33 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: moraztom31/TRacker
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          ref: claude/github-repository-access-aoguba
+          path: app
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -q requests
-      - name: decouverte
+      - run: pip install -q -r app/requirements.txt
+      - name: test
+        working-directory: app
         run: |
           python - <<'EOF'
-          import re, requests
-          from concurrent.futures import ThreadPoolExecutor
-          NAMES = """AXA Investment Managers|Natixis Investment Managers|BNP Paribas Asset Management|Robeco|Capital Group|Goldman Sachs Asset Management|Morgan Stanley Investment Management|Nordea|GAM|Jupiter|Aviva Investors|DWS|UBS Asset Management|Northern Trust|BNY Mellon|Columbia Threadneedle|Federated Hermes|Ninety One|Brown Advisory|Echiquier|La Financiere de l Echiquier|Mirabaud|UBP|Union Bancaire Privee|EFG|Syz|Bordier|Degroof Petercam|KBC|Belfius|ABN AMRO|Nomura|Mizuho|SMBC|Sumitomo Mitsui|CACEIS|Clearstream|Deutsche Boerse|Bloomberg|MSCI|Moodys|Fitch|FactSet|ICE|CME Group|Worldline|Portzamparc|Invest Securities|Bryan Garnier|Gilbert Dupont|Louis Capital|AlphaValue|Messier Maris|Perella Weinberg|Centerview|Moelis|Greenhill|PAI Partners|Cathay Capital|Partech|Seventure|Antin|Omnes Capital|Qualium|Chequers|Partners Group|CVC|KKR|Bain Capital|Warburg Pincus|Advent International|Cinven|BC Partners|ICG|Hg|Montagu|Vitruvian|Astorg|Cube Infrastructure|Two Sigma|Balyasny|Marshall Wace|Qube|Systematica|CFM Capital Fund Management|Voleon|Citadel Securities|Susquehanna|SIG|DRW|XTX Markets|G-Research|Cubist|Qonto|Pennylane|Alan|Ledger|Spendesk|Mangopay|Swile|Lydia|Sumeria|Memo Bank|Younited|Shine|Libeo|Lemonway|Payplug|Treezor|Nalo|Ramify|Yomoni|Moka|Bpifrance|Oliver Wyman|Kearney|Roland Berger|Eurazeo|Tikehau|Siparex|Ardian|Natixis|Amundi|Carmignac|La Banque Postale|Credit Mutuel Arkea|Credit Mutuel|Allianz France|Generali France|Covea|Groupama|Maif|Macif|Matmut|Malakoff Humanis|Klesia|AG2R|Axa France|Scor|Swiss Re|Munich Re|Hannover Re|Zurich|Chubb|Marsh|Aon|WTW|Gras Savoye|Howden|Arthur J Gallagher|Euler Hermes|Coface|Atradius|Wise|Revolut|N26|Monzo|Klarna|Adyen|Stripe|Checkout|Plaid|Bitstamp|Kraken|Coinbase|Binance|Bitpanda|Bitvavo|Ledn|Fireblocks|Chainalysis|Circle|Paxos|Sofina|Pictet|Lombard|Edmond de Rothschild|Rothschild|Candriam|Comgest|Dorval|Sycomore|Moneta|TOBAM|Varenne|La Francaise|Lazard|Ofi|Quintet|Vontobel|Leonteq|Euronext|Euroclear|Tikehau Capital|Swiss Life|Janus Henderson|Franklin Templeton|Exane|Mandarine|Ecofi|H2O|CIC|Neuflize|Nasdaq|Morningstar|Mediobanca|Marex|Swissquote|Fundsmith|M and G|DNB|Storebrand|Principal|Utmost|Baloise|MetLife|CNP|Arkea|Altaroc|Archimed|Ares|Bitwise|Sofidy|Corum|Perial|Paref|Praemia|Advenis|AEW|Eiffel|Montpensier|Ostrum|Mirova|Meeschaert|Indosuez|Aviva|Capza|Finary|Altarea|Sycomore AM|Primonial|Amundi Immobilier|Swiss Life AM|Neuberger Berman|Fidelity|Schroders|Legal and General|abrdn|Man Group|Pimco""".split('|')
-          NAMES=list(dict.fromkeys(NAMES))
-          def variants(n):
-              b=re.sub(r"[^a-z0-9 ]","",n.lower().replace('&',' and ').replace('é','e').replace('è','e'))
-              w=b.split()
-              v={ ''.join(w), '-'.join(w), w[0] }
-              if len(w)>1: v.add(''.join(w[:2])); v.add('-'.join(w[:2]))
-              return [x for x in v if len(x)>2]
-          INTERN=re.compile(r'stage|stagiaire|intern|trainee|graduate|alternan|praktik|summer|off-cycle|apprenti|junior',re.I)
-          def js(r): return r.json()
-          ATS={
-           'greenhouse':(lambda s:f'https://boards-api.greenhouse.io/v1/boards/{s}/jobs', lambda r:[(j['title'],(j.get('location') or {}).get('name','')) for j in r.json().get('jobs',[])]),
-           'lever':(lambda s:f'https://api.lever.co/v0/postings/{s}?mode=json', lambda r:[(j['text'],(j.get('categories') or {}).get('location','')) for j in r.json()]),
-           'smartrecruiters':(lambda s:f'https://api.smartrecruiters.com/v1/companies/{s}/postings?limit=100', lambda r:[(j['name']+' ['+(j.get('company') or {}).get('name','?')+']',(j.get('location') or {}).get('city','')) for j in r.json().get('content',[])]),
-           'ashby':(lambda s:f'https://api.ashbyhq.com/posting-api/job-board/{s}', lambda r:[(j['title'],j.get('location','')) for j in r.json().get('jobs',[])]),
-           'workable':(lambda s:f'https://apply.workable.com/api/v1/widget/accounts/{s}', lambda r:[(j['title']+' ['+r.json().get('name','?')+']',j.get('city','')) for j in r.json().get('jobs',[])]),
-           'recruitee':(lambda s:f'https://{s}.recruitee.com/api/offers/', lambda r:[(j['title']+' ['+j.get('company_name','?')+']',j.get('city','')) for j in r.json().get('offers',[])]),
-           'teamtailor':(lambda s:f'https://{s}.teamtailor.com/jobs.rss', lambda r:[(t,'') for t in re.findall(r'<title>(?:<!\[CDATA\[)?([^<\]]+)',r.text)[1:]]),
-           'personio':(lambda s:f'https://{s}.jobs.personio.de/xml', lambda r:[(t,'') for t in re.findall(r'<name>(?:<!\[CDATA\[)?([^<\]]+)',r.text)]),
-          }
-          def test(t):
-              name,ats,s=t
-              url,lst=ATS[ats]
-              try:
-                  r=requests.get(url(s),timeout=8,headers={'User-Agent':'Mozilla/5.0'})
-                  if r.status_code!=200: return None
-                  items=lst(r)
-                  if not items: return None
-                  ni=[x for x in items if INTERN.search(x[0])]
-                  return (name,ats,s,len(items),len(ni),(ni or items)[:2])
-              except Exception: return None
-          tasks=[(n,a,s) for n in NAMES for s in variants(n) for a in ATS]
-          print(len(NAMES),'entreprises,',len(tasks),'essais')
-          seen=set()
-          with ThreadPoolExecutor(32) as ex:
-              for h in ex.map(test,tasks):
-                  if h and (h[1],h[2]) not in seen:
-                      seen.add((h[1],h[2]))
-                      print(f'{h[0]} | {h[1]} | {h[2]} | {h[3]} offres, {h[4]} type stage | {h[5]}')
+          import yaml
+          from tracker.sources import COLLECTORS
+          from tracker.filters import matches
+          cfg=yaml.safe_load(open('config.yaml',encoding='utf-8'))
+          NEW={'Marshall Wace','Monzo','N26','Adyen','Bitpanda','Roland Berger','Coface','Wise','Voleon','Qonto','Younited','Memo Bank','Payplug','BC Partners'}
+          tot=0
+          for kind,lst in cfg['sources'].items():
+              for c in (lst or []):
+                  if c['company'] not in NEW: continue
+                  try: jobs=COLLECTORS[kind](c)
+                  except Exception as e: print(f"[KO] {c['company']} {kind} : {type(e).__name__} {str(e)[:90]}"); continue
+                  kept=[j for j in jobs if matches(j,cfg['filters'])]; tot+=len(kept)
+                  print(f"[OK] {c['company']:<14} {kind:<16} {len(jobs):>4} lues, {len(kept):>3} gardées")
+                  for j in (kept or jobs)[:2]: print('      ',j['title'][:60],'|',j.get('location','')[:30],'|',j['url'][-45:])
+          print('TOTAL gardées',tot)
           EOF
