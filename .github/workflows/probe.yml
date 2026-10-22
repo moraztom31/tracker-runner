@@ -17,18 +17,17 @@ jobs:
           D='careers.la-francaise.com'
           U='https://api.digitalrecruiters.com/public/v1/careers-site/job-ads'
           tests=[
-            (U,{}),
-            (U+'?domain_name='+D,{}),
-            (U+'?locale=fr&page=1&limit=50',{'domain_name':D}),
-            (U,{'domain_name':D,'locale':'fr','page':1,'limit':50}),
-            (U,{'careers_site_domain':D}),
-            (U,{'domain':D}),
-            (U,{'host':D}),
-            (U+'?locale=fr',{'filters':{},'domain_name':D}),
+            (U,{'domainName':D}),
+            (U+'?domainName='+D,{}),
+            (U,{'domainName':D,'locale':'fr'}),
+            (U,{'domainName':D,'page':1,'perPage':50}),
+            (U,{'domainName':'la-francaise.com'}),
+            (U,{'domainName':D,'filters':{}}),
+            (U+'?domainName='+D+'&locale=fr&page=1&limit=50',{'domainName':D}),
           ]
           for u,body in tests:
               try:
                   r=cr.post(u,json=body,impersonate='chrome124',timeout=25,headers=H)
-                  print(r.status_code,u.replace(U,'')[:50],json.dumps(body)[:70],'|',r.text[:380].replace('\n',' '))
+                  print(r.status_code,u.replace(U,'')[:60],json.dumps(body)[:70],'|',r.text[:450].replace('\n',' '))
               except Exception as e: print('ERR',str(e)[:70])
           EOF
