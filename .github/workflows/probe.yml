@@ -4,45 +4,25 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: moraztom31/TRacker
-          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-          ref: claude/github-repository-access-aoguba
-          path: app
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -q -r app/requirements.txt
-      - name: tests
-        working-directory: app
+      - run: pip install -q requests beautifulsoup4 curl_cffi
+      - name: dr
         run: |
           python - <<'EOF'
-          import yaml, re, json
-          from bs4 import BeautifulSoup
-          from tracker.sources import COLLECTORS, _get
-          from tracker.filters import matches
-          cfg=yaml.safe_load(open('config.yaml',encoding='utf-8'))
-          for kind,lst in cfg['sources'].items():
-              for c in (lst or []):
-                  if c['company'] not in {'Candriam','Ofi Invest'}: continue
-                  try: jobs=COLLECTORS[kind](c)
-                  except Exception as e: print('[KO]',c['company'],type(e).__name__,str(e)[:100]); continue
-                  kept=[j for j in jobs if matches(j,cfg['filters'])]
-                  print(f"[OK] {c['company']:<12} {len(jobs):>4} lues, {len(kept):>3} gardées")
-                  for j in (kept or jobs)[:3]: print('      ',j['title'][:70],'|',j.get('location','')[:45],'|',j['url'][-60:])
-          print('===== Candriam debug')
-          r=_get('https://jobs.candriam.com/offre-de-emploi/liste-toutes-offres.aspx?all=1&mode=list'); s=BeautifulSoup(r.text,'html.parser')
-          ls=[a for a in s.find_all('a',href=True) if '/offre-de-emploi/emploi-' in a['href']]
-          print('  liens:',len(ls),'| texte page:',re.sub(r'\s+',' ',s.get_text(' ',strip=True))[200:500])
-          for a in ls[:3]: print('  ',a['href'][:90],'|',list(a.stripped_strings)[:3])
-          print('===== CIC mot-clé')
-          u='https://recrutement.cic.fr/fr/nos_offres.html?_tabi=RHEC&_pid=Offres&k_tc=&k_fp=&k_dpts=&k_locs=&k_pays=0&k_motsCles=stage&k_iAnnonces=&k_iSocietes='
-          r=_get(u); s=BeautifulSoup(r.text,'html.parser')
-          ids=[re.search(r'annonce=(\d+)',a['href']).group(1) for a in s.find_all('a',href=True) if 'annonce=' in a['href']]
-          print('  ',len(ids),ids[:5],'| total annoncé:',re.search(r'(\d+)\s*offres?',s.get_text(' ',strip=True)).group(0) if re.search(r'(\d+)\s*offres?',s.get_text(' ',strip=True)) else None)
-          print('===== DigitalRecruiters racine')
+          import re
           from curl_cffi import requests as cr
-          r=cr.get('https://api.digitalrecruiters.com/careers/v1/careers-sites/careers.la-francaise.com',impersonate='chrome124',timeout=20)
-          print(r.text[:1500])
+          def get(u,**k): return cr.get(u,impersonate='chrome124',timeout=30,**k)
+          B='https://careers.la-francaise.com'
+          t=get(B+'/fr/annonces').text
+          srcs=sorted(set(re.findall(r'(?:src|href)="([^"]+\.js)"',t)))
+          print('scripts:',srcs[:12])
+          for s in srcs:
+              if not s.startswith('/_nuxt'): continue
+              js=get(B+s).text
+              print('==',s,len(js))
+              for m in sorted(set(re.findall(r'["\'`]([^"\'`]{0,60}(?:job-?ads?|jobs?/|offers?|careers-sites|/ads)[^"\'`]{0,60})["\'`]',js)))[:25]: print('   ',m)
+              chunks=sorted(set(re.findall(r'["\']([A-Za-z0-9_-]+\.js)["\']',js)))
+              print('   chunks:',chunks[:25])
           EOF
