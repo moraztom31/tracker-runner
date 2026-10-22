@@ -7,22 +7,26 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -q requests beautifulsoup4 curl_cffi
+      - run: pip install -q requests curl_cffi
       - name: dr
         run: |
           python - <<'EOF'
-          import re
+          import re, json
           from curl_cffi import requests as cr
-          def get(u,**k): return cr.get(u,impersonate='chrome124',timeout=30,**k)
-          B='https://careers.la-francaise.com'
-          t=get(B+'/fr/annonces').text
-          srcs=sorted(set(re.findall(r'(?:src|href)="([^"]+\.js)"',t)))
-          print('scripts:',srcs[:12])
-          for s in srcs:
-              if not s.startswith('/_nuxt'): continue
-              js=get(B+s).text
-              print('==',s,len(js))
-              for m in sorted(set(re.findall(r'["\'`]([^"\'`]{0,60}(?:job-?ads?|jobs?/|offers?|careers-sites|/ads)[^"\'`]{0,60})["\'`]',js)))[:25]: print('   ',m)
-              chunks=sorted(set(re.findall(r'["\']([A-Za-z0-9_-]+\.js)["\']',js)))
-              print('   chunks:',chunks[:25])
+          A='https://api.digitalrecruiters.com/careers/v1'
+          H={'Accept':'application/json','Origin':'https://careers.la-francaise.com','Referer':'https://careers.la-francaise.com/'}
+          D='careers.la-francaise.com'
+          tests=[
+           f'{A}/careers-site/job-ads',
+           f'{A}/careers-site/job-ads?domain_name={D}',
+           f'{A}/careers-site/job-ads?domain={D}&locale=fr',
+           f'{A}/careers-site/job-ads?careers_site_domain={D}&page=1&per_page=50',
+           f'{A}/careers-sites/{D}/job-ads',
+           f'{A}/careers-site/job-ads?host={D}',
+          ]
+          for u in tests:
+              try:
+                  r=cr.get(u,impersonate='chrome124',timeout=20,headers=H)
+                  print(r.status_code,u.replace(A,'')[:90],'|',r.text[:260].replace('\n',' '))
+              except Exception as e: print('ERR',u[-60:],str(e)[:60])
           EOF
