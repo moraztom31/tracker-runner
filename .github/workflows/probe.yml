@@ -4,30 +4,36 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: moraztom31/TRacker
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          ref: claude/github-repository-access-aoguba
+          path: app
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -q requests curl_cffi
-      - name: dr
+      - run: pip install -q -r app/requirements.txt
+      - name: test final
+        working-directory: app
         run: |
           python - <<'EOF'
-          import json
-          from curl_cffi import requests as cr
-          H={'Accept':'application/json','Content-Type':'application/json','Origin':'https://careers.la-francaise.com','Referer':'https://careers.la-francaise.com/'}
-          D='careers.la-francaise.com'
-          U='https://api.digitalrecruiters.com/public/v1/careers-site/job-ads'
-          tests=[
-            (U,{'domainName':D}),
-            (U+'?domainName='+D,{}),
-            (U,{'domainName':D,'locale':'fr'}),
-            (U,{'domainName':D,'page':1,'perPage':50}),
-            (U,{'domainName':'la-francaise.com'}),
-            (U,{'domainName':D,'filters':{}}),
-            (U+'?domainName='+D+'&locale=fr&page=1&limit=50',{'domainName':D}),
-          ]
-          for u,body in tests:
-              try:
-                  r=cr.post(u,json=body,impersonate='chrome124',timeout=25,headers=H)
-                  print(r.status_code,u.replace(U,'')[:60],json.dumps(body)[:70],'|',r.text[:450].replace('\n',' '))
-              except Exception as e: print('ERR',str(e)[:70])
+          import yaml
+          from tracker.sources import COLLECTORS, _get
+          from tracker.filters import matches
+          cfg=yaml.safe_load(open('config.yaml',encoding='utf-8'))
+          NEW={'Candriam','Ofi Invest','Quintet','CIC','Comgest','DNCA','Generali','Janus Henderson','Lazard','Euroclear','Euronext','Allianz','Franklin Templeton','La Française','Sycomore AM','Swissquote','Altarea','Tikehau Capital','Capza','Finary'}
+          tot=0
+          for kind,lst in cfg['sources'].items():
+              for c in (lst or []):
+                  if c['company'] not in NEW: continue
+                  try: jobs=COLLECTORS[kind](c)
+                  except Exception as e: print(f"[KO] {c['company']} {kind} : {type(e).__name__} {str(e)[:90]}"); continue
+                  kept=[j for j in jobs if matches(j,cfg['filters'])]; tot+=len(kept)
+                  print(f"[OK] {c['company']:<18} {kind:<17} {len(jobs):>4} lues, {len(kept):>3} gardées")
+                  for j in (kept or jobs)[:2]: print('      ',j['title'][:62],'|',j.get('location','')[:34],'|',j['url'][-50:])
+                  if c['company']=='La Française' and jobs:
+                      try: r=_get(jobs[0]['url'],'chrome124'); print('      page offre :',r.status_code)
+                      except Exception as e: print('      page offre KO',str(e)[:60])
+          print('TOTAL gardées',tot)
           EOF
