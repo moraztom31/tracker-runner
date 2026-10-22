@@ -1,0 +1,57 @@
+name: probe
+on: workflow_dispatch
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q requests
+      - name: ats
+        run: |
+          python - <<'PY'
+          import re, requests
+          from concurrent.futures import ThreadPoolExecutor
+          names = """amiral gestion|abeille|aviva|natixis im|covea|axa im|meeschaert|primonial|swiss life|sienna|eurazeo|mirova|carmignac|groupama|mandarine|montpensier|moneta|ostrum|dorval|tocqueville|echiquier|ellipsis|talence|h2o|bpifrance|isomer|omnes|keensight|cvc|cinven|bridgepoint|ik partners|pai partners|astorg|montefiore|argos|qualium|andera|siparex|turenne|nextstage|partech|serena|eight roads|index ventures|atomico|balderton|lakestar|point nine|creandum|northzone|speedinvest|hv capital|earlybird|alven|breega|isai|elaia|sofinnova|truffle|lydia|sumeria|ledger|spendesk|alan|swile|pennylane|treezor|mangopay|lemonway|stripe|revolut|checkout|plaid|ramp|brex|klarna|affirm|wealthfront|betterment|robinhood|coinbase|kraken|binance|bitstamp|ripple|circle|chainalysis|fireblocks|anchorage|etoro|trading 212|ig group|saxo|degiro|flatex|scalable capital|trade republic|bunq|starling|thought machine|10x|mambu|temenos|finastra|murex|fis|broadridge|clearstream|swift|lch|eurex|cboe|nasdaq|tradeweb|marketaxess|bloomberg|factset|morningstar|msci|moodys|fitch|pwc|deloitte|kpmg|mazars|bdo|grant thornton|oliver wyman|bain|bcg|mckinsey|alvarez|fti|kroll|moelis|centerview|perella|greenhill|qatalyst|jefferies|piper sandler|stifel|cowen|oppenheimer|baird|nomura|daiwa|mizuho|smbc|sumitomo|bred|la banque postale|arkea|standard chartered|natwest|caixa|sabadell|unicredit|intesa|mediobanca|munich re|swiss re|scor|hannover re|partner re|axa xl|chubb|aig|zurich|mapfre|ageas|nn group|aegon|achmea|credit foncier|cnp|malakoff|humanis|mgen|maif|macif|matmut|maaf|gmf|pacifica|apicil|spirica|suravenir|cardif|oradea|nortia|cleor|corum|sofidy|perial|paref|atream|novaxia|fiducial|voisin|advenis|robeco|vontobel|ubp|mirabaud|bordier|syz|gonet|raiffeisen|postfinance|neuflize|banque palatine|portzamparc|tp icap|bgc|marex|stonex|admiral markets|xtx|citadel|two sigma|de shaw|hrt|drw|susquehanna|brevan howard|bluecrest|cqs|balyasny|verition|qube|cfm|systematica|lansdowne|egerton|alken|polar capital|jupiter|ninety one|mfs|alliancebernstein|loomis sayles|nuveen|pgim|manulife|columbia threadneedle|baillie gifford|fundsmith|royal london|m&g|hargreaves lansdown|quilter|rathbones|brewin dolphin|investec|close brothers|numis|peel hunt|panmure|liberum|canaccord|berenberg|metzler|hauck|warburg|deka|dws|union investment|flossbach|meag|helaba|dz bank|commerzbank|kfw|lbbw|bayernlb|aareal|abn amro|nibc|van lanschot|kempen|kbc|belfius|argenta|degroof""".split("|")
+          names = sorted(set(n.strip() for n in names if n.strip()))
+          def slugs(n):
+              a = re.sub(r'[^a-z0-9]','',n.lower()); b = re.sub(r'[^a-z0-9]+','-',n.lower()).strip('-')
+              return sorted({a,b,a+'group'})
+          def get(u):
+              try:
+                  return requests.get(u, timeout=10, headers={'User-Agent':'Mozilla/5.0'})
+              except Exception: return None
+          def check(n):
+              out=[]
+              for s in slugs(n):
+                  r=get(f'https://boards-api.greenhouse.io/v1/boards/{s}/jobs')
+                  if r is not None and r.status_code==200:
+                      try: out.append(('greenhouse',s,len(r.json().get('jobs',[]))))
+                      except Exception: pass
+                  r=get(f'https://api.lever.co/v0/postings/{s}?mode=json')
+                  if r is not None and r.status_code==200:
+                      try: out.append(('lever',s,len(r.json())))
+                      except Exception: pass
+                  r=get(f'https://api.smartrecruiters.com/v1/companies/{s}/postings?limit=1')
+                  if r is not None and r.status_code==200:
+                      try:
+                          t=r.json().get('totalFound',0)
+                          if t: out.append(('smartrecruiters',s,t))
+                      except Exception: pass
+                  r=get(f'https://api.ashbyhq.com/posting-api/job-board/{s}')
+                  if r is not None and r.status_code==200:
+                      try: out.append(('ashby',s,len(r.json().get('jobs',[]))))
+                      except Exception: pass
+                  r=get(f'https://{s}.recruitee.com/api/offers')
+                  if r is not None and r.status_code==200:
+                      try: out.append(('recruitee',s,len(r.json().get('offers',[]))))
+                      except Exception: pass
+                  r=get(f'https://{s}.teamtailor.com/jobs.rss')
+                  if r is not None and r.status_code==200 and '<item>' in r.text:
+                      out.append(('teamtailor',s,r.text.count('<item>')))
+              return n,out
+          with ThreadPoolExecutor(24) as p:
+              for n,o in p.map(check,names):
+                  if o: print(n,o)
+          PY
