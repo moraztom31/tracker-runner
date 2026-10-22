@@ -1,0 +1,47 @@
+name: probe
+on: workflow_dispatch
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q requests
+      - name: ats
+        run: |
+          python - <<'EOF'
+          import re, requests
+          from concurrent.futures import ThreadPoolExecutor
+          NAMES = """Carmignac|Candriam|DNCA Finance|Amiral Gestion|Comgest|Dorval Asset Management|Sycomore Asset Management|Moneta Asset Management|TOBAM|Varenne Capital Partners|La Francaise|Lazard|Natixis Investment Managers|Ofi Invest|Pictet|Quintet|Vontobel|Leonteq|Euronext|Euroclear|Eurazeo|Tikehau Capital|Siparex|Bpifrance|Allianz Global Investors|Generali|Swiss Life|Janus Henderson|Franklin Templeton|Exane|Mandarine Gestion|Ecofi|H2O Asset Management|CIC|Banque Neuflize OBC|Nasdaq|Morningstar|Mediobanca|Marex|Swissquote|Fundsmith|M&G|DNB|Storebrand|Principal|Utmost|Wealins|Baloise|MetLife|CNP Assurances|Covea|Malakoff Humanis|AG2R La Mondiale|Abeille Assurances|Arkea|Groupama|Altaroc|Axiom Alternative Investments|Archimed|Ares Management|Bitwise|Sofidy|Corum|Perial|Paref|Praemia REIM|Advenis|AEW|Altarea|Atland|Epsicap|Eiffel Investment Group|Montpensier Arbevel|Alienor Capital|Ampegest|Kyaneos|LBO France|Isatis Capital|Swen Capital Partners|Seeds Invest|Raizers|Clubfunding|Stellium|Cardif|Allianz|Aviva|Edmond de Rothschild|Rothschild|BNP Paribas Asset Management|Hsbc Asset Management|Amundi|Crédit Mutuel|Arkea Asset Management|Delubac|Fidelity|Direct Securities|Wealthcome|Tilvest|Yomoni|Finary|Lyxor|Alken|Eiffel|Ostrum|Mirova|Ardian|Capza|Meeschaert|Rothschild Martin Maurel|Indosuez|Gimar|Montaigne""".split('|')
+          def variants(n):
+              b=re.sub(r"[^a-z0-9 ]","",n.lower().replace('&',' and ').replace('é','e').replace('è','e'))
+              w=b.split()
+              v={ ''.join(w), '-'.join(w), w[0] }
+              if len(w)>1: v.add(''.join(w[:2])); v.add('-'.join(w[:2]))
+              return [x for x in v if len(x)>2]
+          ATS={
+           'greenhouse':(lambda s:f'https://boards-api.greenhouse.io/v1/boards/{s}/jobs', lambda r:len(r.json().get('jobs',[])), lambda r:[j['title'] for j in r.json().get('jobs',[])]),
+           'lever':(lambda s:f'https://api.lever.co/v0/postings/{s}?mode=json', lambda r:len(r.json()), lambda r:[j['text'] for j in r.json()]),
+           'smartrecruiters':(lambda s:f'https://api.smartrecruiters.com/v1/companies/{s}/postings', lambda r:r.json().get('totalFound',0), lambda r:[j['name'] for j in r.json().get('content',[])]),
+           'ashby':(lambda s:f'https://api.ashbyhq.com/posting-api/job-board/{s}', lambda r:len(r.json().get('jobs',[])), lambda r:[j['title'] for j in r.json().get('jobs',[])]),
+           'workable':(lambda s:f'https://apply.workable.com/api/v1/widget/accounts/{s}', lambda r:len(r.json().get('jobs',[])), lambda r:[j['title'] for j in r.json().get('jobs',[])]),
+           'recruitee':(lambda s:f'https://{s}.recruitee.com/api/offers/', lambda r:len(r.json().get('offers',[])), lambda r:[j['title'] for j in r.json().get('offers',[])]),
+           'teamtailor':(lambda s:f'https://{s}.teamtailor.com/jobs.rss', lambda r:r.text.count('<item>'), lambda r:re.findall(r'<title>(?:<!\[CDATA\[)?([^<\]]+)',r.text)[1:3]),
+           'personio':(lambda s:f'https://{s}.jobs.personio.de/xml', lambda r:r.text.count('<position>'), lambda r:re.findall(r'<name>(?:<!\[CDATA\[)?([^<\]]+)',r.text)[:3]),
+          }
+          def test(t):
+              name,ats,s=t
+              url,cnt,titles=ATS[ats]
+              try:
+                  r=requests.get(url(s),timeout=8,headers={'User-Agent':'Mozilla/5.0'})
+                  if r.status_code!=200: return None
+                  n=cnt(r)
+                  if n>0: return (name,ats,s,n,titles(r)[:2])
+              except Exception: return None
+          tasks=[(n,a,s) for n in NAMES for s in variants(n) for a in ATS]
+          print(len(tasks),'essais')
+          with ThreadPoolExecutor(24) as ex:
+              for h in ex.map(test,tasks):
+                  if h: print(f'{h[0]} | {h[1]} | {h[2]} | {h[3]} offres | {h[4]}')
+          EOF
