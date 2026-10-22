@@ -11,17 +11,24 @@ jobs:
       - name: dr
         run: |
           python - <<'EOF'
+          import json
           from curl_cffi import requests as cr
-          H={'Accept':'application/json','Origin':'https://careers.la-francaise.com','Referer':'https://careers.la-francaise.com/'}
+          H={'Accept':'application/json','Content-Type':'application/json','Origin':'https://careers.la-francaise.com','Referer':'https://careers.la-francaise.com/'}
           D='careers.la-francaise.com'
-          bases=['https://api.digitalrecruiters.com/public/v1','https://api.digitalrecruiters.com/public/careers/v1','https://api.digitalrecruiters.com/v1','https://careers.la-francaise.com/api/v1','https://careers.la-francaise.com/api']
-          for b in bases:
-              for path in ['/careers-site/job-ads','/careers-sites/'+D+'/job-ads']:
-                  for q in ['','?domain_name='+D]:
-                      u=b+path+q
-                      try:
-                          r=cr.get(u,impersonate='chrome124',timeout=20,headers=H)
-                          if r.status_code!=404: print(r.status_code,u.replace('https://',''),'|',r.text[:300].replace('\n',' '))
-                          else: print(404,u.replace('https://','')[:80])
-                      except Exception as e: print('ERR',u[-60:],str(e)[:60])
+          U='https://api.digitalrecruiters.com/public/v1/careers-site/job-ads'
+          tests=[
+            (U,{}),
+            (U+'?domain_name='+D,{}),
+            (U+'?locale=fr&page=1&limit=50',{'domain_name':D}),
+            (U,{'domain_name':D,'locale':'fr','page':1,'limit':50}),
+            (U,{'careers_site_domain':D}),
+            (U,{'domain':D}),
+            (U,{'host':D}),
+            (U+'?locale=fr',{'filters':{},'domain_name':D}),
+          ]
+          for u,body in tests:
+              try:
+                  r=cr.post(u,json=body,impersonate='chrome124',timeout=25,headers=H)
+                  print(r.status_code,u.replace(U,'')[:50],json.dumps(body)[:70],'|',r.text[:380].replace('\n',' '))
+              except Exception as e: print('ERR',str(e)[:70])
           EOF
