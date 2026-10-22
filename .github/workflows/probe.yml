@@ -4,38 +4,49 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: moraztom31/TRacker
-          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-          ref: claude/github-repository-access-aoguba
-          path: app
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -q -r app/requirements.txt
-      - name: test des sources
-        working-directory: app
+      - run: pip install -q requests beautifulsoup4 curl_cffi
+      - name: sites
         run: |
           python - <<'EOF'
-          import yaml, traceback, copy
-          from tracker.sources import COLLECTORS
-          from tracker.filters import matches
-          cfg=yaml.safe_load(open('config.yaml',encoding='utf-8'))
-          NEW={'Candriam','Ofi Invest','Quintet','CIC','Comgest','Generali','Janus Henderson','Lazard','Euroclear','Euronext','Allianz','Franklin Templeton'}
-          for kind,lst in cfg['sources'].items():
-              for c in (lst or []):
-                  if c['company'] not in NEW: continue
-                  tries=[c]
-                  if kind=='workday':
-                      tries=[{**c,'host':f"{c['tenant']}.wd{n}.myworkdayjobs.com"} for n in (3,5,1,12,103)]
-                  for cc in tries:
-                      try:
-                          jobs=COLLECTORS[kind](cc)
-                      except Exception as e:
-                          print(f"[KO] {c['company']} {kind} : {type(e).__name__} {str(e)[:100]}"); continue
-                      kept=[j for j in jobs if matches(j,cfg['filters'])]
-                      print(f"[OK] {c['company']:<20} {kind:<10} {len(jobs):>4} lues, {len(kept):>3} gardées" + (f"  (host {cc['host']})" if kind=='workday' else ''))
-                      for j in (kept or jobs)[:3]: print('      ',j['title'][:70],'|',j.get('location','')[:40],'|',j['url'][:95])
-                      break
+          import re, json
+          from bs4 import BeautifulSoup
+          from curl_cffi import requests as cr
+          def get(u,**k):
+              return cr.get(u,impersonate='chrome124',timeout=30,**k)
+          print('===== Candriam : liens bruts')
+          r=get('https://jobs.candriam.com/accueil.aspx?LCID=1036'); s=BeautifulSoup(r.text,'html.parser')
+          for a in s.find_all('a',href=True):
+              if 'emploi' in a['href'] or 'offre' in a['href']: print('  ',a['href'][:140])
+          print('===== CIC : pagination')
+          r=get('https://recrutement.cic.fr/fr/nos_offres.html'); s=BeautifulSoup(r.text,'html.parser')
+          for a in s.find_all('a',href=True):
+              if re.search(r'nos_offres|page|_tabi|offset|debut',a['href']): print('  ',a['href'][:160],'|',a.get_text(' ',strip=True)[:30])
+          m=re.search(r'(\d+)\s*offres?',s.get_text(' ',strip=True)); print('  total annoncé:',m.group(0) if m else None)
+          for u in ['https://recrutement.cic.fr/fr/nos_offres2.html','https://recrutement.cic.fr/fr/nos_offres.html?_pid=Offres&_tabi=RHEC&k_page=2']:
+              try:
+                  rr=get(u); ss=BeautifulSoup(rr.text,'html.parser'); ids=sorted({re.search(r'annonce=(\d+)',a['href']).group(1) for a in ss.find_all('a',href=True) if 'annonce=' in a['href']})
+                  print('  essai',u[-50:],rr.status_code,len(ids),ids[:4])
+              except Exception as e: print('  essai',u[-50:],'ERR',str(e)[:60])
+          print('===== DNCA')
+          r=get('https://www.dnca-investments.com/carrieres'); s=BeautifulSoup(r.text,'html.parser')
+          print('  iframes:',[i.get('src') for i in s.find_all('iframe')][:5])
+          print('  liens carrière:',sorted({a['href'][:110] for a in s.find_all('a',href=True) if re.search(r'career|carri|job|offre|recrut|stage|talent|smartrecruit|welcome',a['href'],re.I)})[:20])
+          print('  scripts externes:',sorted({x['src'][:80] for x in s.find_all('script',src=True) if 'dnca' not in x['src']})[:8])
+          print('  mots:',[w for w in ['stage','stagiaire','offre','candidature'] if w in s.get_text(' ',strip=True).lower()])
+          i=r.text.lower().find('nos offres'); print('  extrait:',re.sub(r'\s+',' ',s.get_text(' ',strip=True))[1500:2300])
+          print('===== La Française')
+          r=get('https://careers.la-francaise.com/fr/annonces'); t=r.text; s=BeautifulSoup(t,'html.parser')
+          print('  scripts:',[x['src'][:100] for x in s.find_all('script',src=True)][:8])
+          print('  api/json:',sorted(set(re.findall(r'https?://[^"\' ]*(?:api|json|jobs|annonces?)[^"\' ]*',t)))[:10])
+          print('  data-*:',sorted({k for tag in s.find_all(True) for k in tag.attrs if k.startswith('data-')})[:15])
+          print('  texte:',re.sub(r'\s+',' ',s.get_text(' ',strip=True))[300:900])
+          print('===== Pictet (SuccessFactors)')
+          for u in ['https://career012.successfactors.eu/career?company=banquepict&career_ns=job_listing_summary&navBarLevel=JOB_SEARCH','https://career012.successfactors.eu/sitemap.xml?company=banquepict','https://career012.successfactors.eu/career?company=banquepict&career_ns=job_listing&navBarLevel=JOB_SEARCH&rcm_site_locale=en_US']:
+              try:
+                  rr=get(u); print('  ',u[-70:],rr.status_code,len(rr.text),rr.headers.get('content-type'))
+                  ids=sorted(set(re.findall(r'career_job_req_id=(\d+)',rr.text)))[:5]; print('     ids:',ids,'| <loc>',rr.text.count('<loc>'))
+              except Exception as e: print('  ERR',str(e)[:80])
           EOF
