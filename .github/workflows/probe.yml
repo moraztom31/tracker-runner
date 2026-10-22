@@ -4,45 +4,38 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: moraztom31/TRacker
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          ref: claude/github-repository-access-aoguba
+          path: app
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -q requests curl_cffi
-      - name: phenom
+      - run: pip install -q -r app/requirements.txt
+      - name: test des sources
+        working-directory: app
         run: |
           python - <<'EOF'
-          import re, json
-          from curl_cffi import requests as cr
-          def ddo(url):
-              t=cr.get(url,impersonate='chrome124',timeout=30).text
-              m=re.search(r'phApp\.ddo\s*=\s*(\{.*?\});\s*phApp\.',t,re.S)
-              if not m:
-                  m=re.search(r'phApp\.ddo\s*=\s*(\{.*?\})\s*;',t,re.S)
-              return t,(json.loads(m.group(1)) if m else None)
-          for name,url in [('Allianz','https://careers.allianz.com/global/en/search-results?keywords=intern'),('Franklin','https://careers.franklintempleton.com/jobs?keywords=intern')]:
-              print('=====',name)
-              t,d=ddo(url)
-              print('ddo trouvé:',bool(d), 'taille',len(t))
-              if not d: 
-                  i=t.find('phApp.ddo'); print(t[i:i+400]); continue
-              print('clés ddo:',list(d.keys())[:20])
-              e=d.get('eagerLoadRefineSearch') or {}
-              print('clés eager:',list(e.keys()))
-              data=e.get('data') or {}
-              print('clés data:',list(data.keys()),'totalHits',e.get('totalHits'),data.get('totalHits'))
-              jobs=data.get('jobs') or []
-              print('nb jobs page:',len(jobs))
-              if jobs: print(json.dumps(jobs[0],ensure_ascii=False)[:900])
-              print('clés racine page:',[k for k in d.keys() if k in('siteConfig','refineSearch','widgetsConfig')], 'pageId', (d.get('siteConfig') or {}).get('pageId'))
-              for k in ('apiAndToken','apiEndPoint'): 
-                  if k in d: print(k,str(d[k])[:200])
-              # widgets API
-              base=url.split('/search-results')[0].split('/jobs')[0]
-              base_host=re.match(r'https://[^/]+',url).group(0)
-              for path in ['/widgets']:
-                  payload={"lang":"en_global","deviceType":"desktop","country":"global","pageName":"search-results","ddoKey":"refineSearch","sortBy":"","subsearch":"","from":0,"jobs":True,"counts":True,"all_fields":["category","country","city","type"],"size":10,"clearAll":False,"jdsource":"facets","isSliderEnable":False,"pageId":"page11","siteType":"external","keywords":"intern","global":True,"selected_fields":{},"locationData":{}}
-                  try:
-                      r=cr.post(base_host+path,json=payload,impersonate='chrome124',timeout=30)
-                      print('widgets',r.status_code,r.text[:300].replace('\n',' '))
-                  except Exception as ex: print('widgets ERR',str(ex)[:100])
+          import yaml, traceback, copy
+          from tracker.sources import COLLECTORS
+          from tracker.filters import matches
+          cfg=yaml.safe_load(open('config.yaml',encoding='utf-8'))
+          NEW={'Candriam','Ofi Invest','Quintet','CIC','Comgest','Generali','Janus Henderson','Lazard','Euroclear','Euronext','Allianz','Franklin Templeton'}
+          for kind,lst in cfg['sources'].items():
+              for c in (lst or []):
+                  if c['company'] not in NEW: continue
+                  tries=[c]
+                  if kind=='workday':
+                      tries=[{**c,'host':f"{c['tenant']}.wd{n}.myworkdayjobs.com"} for n in (3,5,1,12,103)]
+                  for cc in tries:
+                      try:
+                          jobs=COLLECTORS[kind](cc)
+                      except Exception as e:
+                          print(f"[KO] {c['company']} {kind} : {type(e).__name__} {str(e)[:100]}"); continue
+                      kept=[j for j in jobs if matches(j,cfg['filters'])]
+                      print(f"[OK] {c['company']:<20} {kind:<10} {len(jobs):>4} lues, {len(kept):>3} gardées" + (f"  (host {cc['host']})" if kind=='workday' else ''))
+                      for j in (kept or jobs)[:3]: print('      ',j['title'][:70],'|',j.get('location','')[:40],'|',j['url'][:95])
+                      break
           EOF
