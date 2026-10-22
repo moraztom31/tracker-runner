@@ -1,0 +1,52 @@
+name: probe
+on: workflow_dispatch
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q requests beautifulsoup4 curl_cffi
+      - name: sites
+        run: |
+          python - <<'EOF'
+          import re, json
+          from collections import Counter
+          from bs4 import BeautifulSoup
+          from curl_cffi import requests as cr
+          URLS = {
+           'Candriam':'https://jobs.candriam.com/accueil.aspx?LCID=1036',
+           'DNCA':'https://www.dnca-investments.com/carrieres',
+           'Comgest':'https://www.comgest.com/fr/about-us/nos-collaborateurs/carrieres/stages',
+           'La Francaise':'https://careers.la-francaise.com/fr/annonces',
+           'Ofi Invest':'https://ofi-invest.com/fr/carriere/nos-offres',
+           'Pictet':'https://career012.successfactors.eu/career?company=banquepict&career_ns=job_listing_summary&navBarLevel=JOB_SEARCH',
+           'Allianz':'https://careers.allianz.com/global/en/search-results',
+           'Generali':'https://carrieres.generali.fr/search/?q=&q2=&alertId=&locationsearch=&title=&department=&location=',
+           'Janus Henderson':'https://jobs.janushenderson.com/search/?createNewAlert=false&q=',
+           'Franklin Templeton':'https://careers.franklintempleton.com/jobs',
+           'CIC':'https://recrutement.cic.fr/fr/nos_offres.html',
+           'Euronext':'https://www.euronext.com/fr/about/careers/vacancies',
+           'Quintet':'https://www.quintet.com/en-gb/vacancies',
+           'Leonteq':'https://www.leonteq.com/about-us/careers/open-positions?language_id=1',
+          }
+          HINTS=['phenom','phApp','talentsoft','successfactors','jobs2web','icims','taleo','workday','smartrecruiters','avature','recruitee','teamtailor','greenhouse','lever.co','oraclecloud','cornerstone','eolia','beetween','hrmanager','lumesse','sap','jobteaser','welcometothejungle','flatchr','digitalrecruiters','jobaffinity','cvwarehouse','altays','ashby','join.com','personio','softgarden','umantis','abacus']
+          for name,u in URLS.items():
+              print('=====',name,u[:90])
+              try:
+                  r=cr.get(u,impersonate='chrome124',timeout=30,allow_redirects=True)
+              except Exception as e:
+                  print('  ERR',str(e)[:100]); continue
+              t=r.text; s=BeautifulSoup(t,'html.parser')
+              print('  statut',r.status_code,len(t),'url finale',r.url[:100])
+              print('  titre:',(s.title.string or '').strip()[:90] if s.title else None)
+              low=t.lower()
+              print('  indices:',[h for h in HINTS if h.lower() in low][:10])
+              links=[a['href'] for a in s.find_all('a',href=True)]
+              jl=[l for l in links if re.search(r'job|offre|annonce|vacanc|position|career|emploi|stage',l,re.I)]
+              print('  liens offres:',len(jl),Counter(re.sub(r'[0-9a-f-]{6,}|\d+','#',l)[:70] for l in jl).most_common(5))
+              print('  json-ld JobPosting:',t.count('JobPosting'),'| ddo:',('eagerLoadRefineSearch' in t),'| next_data:',('__NEXT_DATA__' in t))
+              body=s.get_text(' ',strip=True)
+              print('  texte:',body[:220])
+          EOF
