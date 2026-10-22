@@ -1,6 +1,6 @@
 # Robot de scan, hébergé dans un repo PUBLIC (minutes GitHub Actions illimitées). Ce repo ne contient que :
 #   - ce fichier de workflow,
-#   - le dossier docs/ (le site publié par GitHub Pages : page web + offres, rien d'autre).
+#   - la branche gh-pages (le site publié par GitHub Pages : page web + offres chiffrées, rien d'autre).
 # Le code, la configuration, la liste des sources et les données internes restent dans le repo PRIVÉ.
 # À copier dans le repo public sous : .github/workflows/scan.yml  (voir runner/README.md)
 name: scan
@@ -13,13 +13,17 @@ on:
         description: "Enregistrer les données dans le repo privé (décocher pour un simple test de publication)"
         type: boolean
         default: true
+      force_publish:
+        description: "Publier le site même sans nouveauté (pour publier une modification de la page ; cron-job.org ne le coche pas)"
+        type: boolean
+        default: false
 
 concurrency:
   group: scan
   cancel-in-progress: false
 
 permissions:
-  contents: write   # publier docs/ dans ce repo (GitHub Pages) ; le repo privé est lu et écrit avec le jeton PRIVATE_REPO_TOKEN
+  contents: write   # publier la branche gh-pages dans ce repo ; le repo privé est lu et écrit avec le jeton PRIVATE_REPO_TOKEN
 
 jobs:
   scan:
@@ -56,6 +60,8 @@ jobs:
           git config user.email "bot@users.noreply.github.com"
           git add data docs/jobs.json
           if ! git diff --cached --quiet; then
+            # le site n'est republié que si les offres (docs/jobs.json) ont changé, pas pour un simple état interne
+            git diff --cached --name-only | grep -q '^docs/' && echo "site=true" >> "$GITHUB_OUTPUT"
             git commit -q -m "maj offres"
             # le repo privé peut recevoir un autre commit entre-temps : on réessaie quelques fois
             for i in 1 2 3 4 5; do
@@ -66,25 +72,24 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      # Publication du site : on copie docs/ du repo privé dans CE repo public, servi par GitHub Pages (main /docs).
-      # Seulement s'il y a du nouveau, ou lors d'un lancement manuel (pour publier une modification de la page).
+      # Publication du site : docs/ du repo privé (page + offres chiffrées) est envoyé sur la branche « gh-pages » de CE repo public,
+      # servie par GitHub Pages (Settings > Pages > Branch : gh-pages, dossier / (root)).
+      # La branche est réécrite à chaque fois avec un seul commit : le dépôt reste léger (le fichier chiffré change entièrement à chaque publication).
+      # Seulement si les offres ont changé, ou si « force_publish » est coché (pour publier une modification de la page).
       - name: Publication du site (GitHub Pages)
-        if: steps.commit.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
+        if: steps.commit.outputs.site == 'true' || inputs.force_publish
         env:
           SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
         run: |
-          git clone -q "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" site
-          rm -rf site/docs && mkdir -p site/docs
-          cp -r app/docs/. site/docs/
-          rm -f site/docs/jobs.json
           pip install -q cryptography
-          python app/runner/encrypt_site.py app/docs/jobs.json site/docs/jobs.enc
+          mkdir site
+          cp -r app/docs/. site/
+          rm -f site/jobs.json
+          python app/runner/encrypt_site.py app/docs/jobs.json site/jobs.enc
           cd site
+          git init -q -b gh-pages
           git config user.name "stage-tracker"
           git config user.email "bot@users.noreply.github.com"
-          git add docs
-          if ! git diff --cached --quiet; then
-            git commit -q -m "maj offres"
-            git pull --rebase -q
-            git push -q
-          fi
+          git add -A
+          git commit -q -m "maj offres"
+          git push -q --force "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gh-pages
