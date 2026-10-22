@@ -19,28 +19,30 @@ jobs:
         run: |
           python - <<'EOF'
           import yaml, re, json
+          from bs4 import BeautifulSoup
           from tracker.sources import COLLECTORS, _get
           from tracker.filters import matches
           cfg=yaml.safe_load(open('config.yaml',encoding='utf-8'))
           for kind,lst in cfg['sources'].items():
               for c in (lst or []):
-                  if c['company'] not in {'Candriam','CIC','DNCA','Ofi Invest'}: continue
+                  if c['company'] not in {'Candriam','Ofi Invest'}: continue
                   try: jobs=COLLECTORS[kind](c)
                   except Exception as e: print('[KO]',c['company'],type(e).__name__,str(e)[:100]); continue
                   kept=[j for j in jobs if matches(j,cfg['filters'])]
-                  print(f"[OK] {c['company']:<12} {len(jobs):>4} lues, {len(kept):>3} gardées, {len({j['url'] for j in jobs})} urls distinctes")
+                  print(f"[OK] {c['company']:<12} {len(jobs):>4} lues, {len(kept):>3} gardées")
                   for j in (kept or jobs)[:3]: print('      ',j['title'][:70],'|',j.get('location','')[:45],'|',j['url'][-60:])
-          print('===== DigitalRecruiters (La Française)')
+          print('===== Candriam debug')
+          r=_get('https://jobs.candriam.com/offre-de-emploi/liste-toutes-offres.aspx?all=1&mode=list'); s=BeautifulSoup(r.text,'html.parser')
+          ls=[a for a in s.find_all('a',href=True) if '/offre-de-emploi/emploi-' in a['href']]
+          print('  liens:',len(ls),'| texte page:',re.sub(r'\s+',' ',s.get_text(' ',strip=True))[200:500])
+          for a in ls[:3]: print('  ',a['href'][:90],'|',list(a.stripped_strings)[:3])
+          print('===== CIC mot-clé')
+          u='https://recrutement.cic.fr/fr/nos_offres.html?_tabi=RHEC&_pid=Offres&k_tc=&k_fp=&k_dpts=&k_locs=&k_pays=0&k_motsCles=stage&k_iAnnonces=&k_iSocietes='
+          r=_get(u); s=BeautifulSoup(r.text,'html.parser')
+          ids=[re.search(r'annonce=(\d+)',a['href']).group(1) for a in s.find_all('a',href=True) if 'annonce=' in a['href']]
+          print('  ',len(ids),ids[:5],'| total annoncé:',re.search(r'(\d+)\s*offres?',s.get_text(' ',strip=True)).group(0) if re.search(r'(\d+)\s*offres?',s.get_text(' ',strip=True)) else None)
+          print('===== DigitalRecruiters racine')
           from curl_cffi import requests as cr
-          D='https://api.digitalrecruiters.com/careers/v1/careers-sites/careers.la-francaise.com'
-          for path in ['/jobs','/job-ads','/ads','/offers','/jobs?limit=50','/search?limit=50','']:
-              try:
-                  r=cr.get(D+path,impersonate='chrome124',timeout=20,headers={'Accept':'application/json'})
-                  print('  ',path or '(racine)',r.status_code,len(r.text),r.text[:160].replace('\n',' '))
-              except Exception as e: print('  ',path,'ERR',str(e)[:60])
-          print('===== Pictet : indices dans la page')
-          r=cr.get('https://career012.successfactors.eu/career?company=banquepict&career_ns=job_listing_summary&navBarLevel=JOB_SEARCH',impersonate='chrome124',timeout=30)
-          t=r.text
-          for pat in [r'ajax[^"\' ]{0,80}',r'remoting[^"\' ]{0,60}',r'jobSearch[^"\' ]{0,50}',r'rcm[^"\' ]{0,50}',r'career_ns=[a-z_]+',r'/career\?[^"\' ]{0,100}']:
-              print('  ',pat[:14],sorted(set(re.findall(pat,t)))[:8])
+          r=cr.get('https://api.digitalrecruiters.com/careers/v1/careers-sites/careers.la-francaise.com',impersonate='chrome124',timeout=20)
+          print(r.text[:1500])
           EOF
