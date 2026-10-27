@@ -14,17 +14,17 @@ jobs:
           import re
           from bs4 import BeautifulSoup
           from curl_cffi import requests as cr
-          urls = ["https://www.aurelbgc.com/fr/carrieres","https://www.aurelbgc.com/carrieres","https://www.aurelbgc.com","https://careers.bgcpartners.com","https://www.bgcg.com/careers","https://careers.bcg.com/search?q=stage","https://careers.bcg.com/global/en/search-results?keywords=intern","https://careers.bcg.com/global/en/search-results?keywords=stage&location=France","https://careers.bcg.com"]
+          urls = ["https://aurelbgc.com","https://www.aurel-bgc.com","https://aurel-bgc.com","https://www.aurelbgc.fr","https://aurelbgc.fr","https://www.aurelbgc.eu","https://bgcpartners.com/careers","https://www.bgcpartners.com/careers","https://www.bgcg.com","https://bgcg.com/careers","https://jobs.bgcg.com","https://bgc.wd1.myworkdayjobs.com","https://www.aurel-bgc.fr","https://www.aurel-bgc.com/carrieres"]
           for u in urls:
               try:
-                  r = cr.get(u, impersonate="chrome124", timeout=25)
+                  r = cr.get(u, impersonate="chrome124", timeout=25, allow_redirects=True)
               except Exception as e:
-                  print("ERR", u, type(e).__name__, str(e)[:80]); continue
+                  print("ERR", u, type(e).__name__); continue
               t = r.text
               soup = BeautifulSoup(t, "html.parser")
-              print("==", u, r.status_code, len(t), "|", (soup.title.get_text(strip=True)[:70] if soup.title else ""))
-              hints = sorted(set(re.findall(r"(workday|myworkdayjobs|phenom|smartrecruiters|greenhouse|lever\.co|taleo|successfactors|icims|oraclecloud|avature|jobvite|teamtailor|workable|recruitee|ashby|digitalrecruiters|talentsoft|eightfold|jibe|brassring)", t, re.I)))
+              print("==", u, "->", r.url, r.status_code, len(t), "|", (soup.title.get_text(strip=True)[:70] if soup.title else ""))
+              hints = sorted(set(re.findall(r"(myworkdayjobs|phenom|smartrecruiters|greenhouse|lever\.co|taleo|successfactors|icims|oraclecloud|avature|jobvite|teamtailor|workable|recruitee|ashby|digitalrecruiters|talentsoft|eightfold|jibe|brassring|welcometothejungle|jobteaser)", t, re.I)))
               print("   plateformes:", hints[:8])
-              links = [(a.get_text(" ", strip=True)[:50], a["href"][:100]) for a in soup.find_all("a", href=True) if re.search(r"job|offre|career|carri|stage|intern|recrut|apply", a["href"], re.I)]
-              for l in links[:12]: print("   ", l)
+              links = [(a.get_text(" ", strip=True)[:50], a["href"][:110]) for a in soup.find_all("a", href=True) if re.search(r"job|offre|career|carri|stage|intern|recrut|apply|rejoin", a["href"] + a.get_text(), re.I)]
+              for l in links[:10]: print("   ", l)
           PY
