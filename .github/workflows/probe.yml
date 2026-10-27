@@ -4,37 +4,34 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: moraztom31/TRacker
+          ref: claude/github-repository-access-aoguba
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          path: app
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -q requests beautifulsoup4 curl_cffi
-      - name: pages
+      - run: pip install -q -r app/requirements.txt
+      - name: test
+        working-directory: app
         run: |
           python - <<'PY'
-          import re
-          from bs4 import BeautifulSoup
-          from curl_cffi import requests as cr
-          urls = """https://www.recrutement.banque-france.fr/fr
-          https://www.moelis.com/careers/
-          https://talent.ecb.europa.eu/
-          https://www.ca-cib.com/careers
-          https://www.mandarine-gestion.com/FR/fr/carrieres
-          https://www.centerviewpartners.com/careers
-          https://pwpartners.com/careers/
-          https://www.jefferies.com/careers/
-          https://www.mizuhogroup.com/emea/careers
-          https://www.eib.org/en/about/careers/
-          https://www.caissedesdepots.fr/recrutement""".split()
-          for u in urls:
+          import yaml, concurrent.futures as cf
+          from tracker.sources import COLLECTORS
+          from tracker.main import matches
+          cfg = yaml.safe_load(open("config.yaml"))
+          wanted = {"Banque de France","Moelis","BCE","OCDE","MUFG Investor Services","Ocorian","Nasdaq","Clear Street","Ebury","FxPro","tastytrade","Payoneer","SoFi","Currencies Direct","Western Union","Tradition","Brown & Brown","Lockton","WTW","M1 Finance","Freetrade","Wealthsimple","Vantage","Acorns","Axi","Binck","InvestEngine","Lightyear","Admirals","Affirm","Betterment","Brex","Coinbase","Robinhood","Ripple","Binance","Fireblocks","Stripe","CFM (Capital Fund Management)","Anchorage Digital","Swile","Wealthfront","Mazars","Stifel","TP ICAP","BlueCrest","Temenos","Alan","Andera Partners","Pennylane","Plaid","Ledger","Trading 212","Thought Machine","Quilter","IK Partners","Grant Thornton","Mangopay"}
+          tasks = [(k, c) for k, l in cfg["sources"].items() for c in (l or []) if c["company"] in wanted]
+          def run(t):
+              k, c = t
               try:
-                  r = cr.get(u, impersonate="chrome124", timeout=25)
+                  jobs = COLLECTORS[k](c)
+                  kept = [j for j in jobs if matches(j, cfg["filters"])]
+                  return f"{c['company']:<30} {k:<16} {len(jobs):>4} lues {len(kept):>3} gardées " + " | ".join(j["title"][:40] for j in kept[:2])
               except Exception as e:
-                  print("ERR", u, type(e).__name__); continue
-              t = r.text
-              print("==", u, r.status_code)
-              print("  workday:", sorted(set(re.findall(r"https?://[\w\.\-]+myworkdayjobs\.com[\w\-/\.]*", t)))[:6])
-              print("  oracle:", sorted(set(re.findall(r"https?://[\w\.\-]+oraclecloud\.[a-z]+[\w\-/\.]*", t)))[:4])
-              soup = BeautifulSoup(t, "html.parser")
-              ext = sorted({a["href"][:110] for a in soup.find_all("a", href=True) if re.search(r"job|offre|search|recruit|apply|candidat|vacanc|opportunit|career", a["href"], re.I) and a["href"].startswith("http")})
-              print("  liens:", ext[:14])
+                  return f"{c['company']:<30} {k:<16} ERREUR {type(e).__name__} {str(e)[:70]}"
+          with cf.ThreadPoolExecutor(8) as p:
+              for l in p.map(run, tasks): print(l)
           PY
