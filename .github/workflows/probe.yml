@@ -8,104 +8,33 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -q requests beautifulsoup4 curl_cffi
-      - name: ats
-        run: |
-          python - <<'PY'
-          import re, requests
-          from concurrent.futures import ThreadPoolExecutor
-          names = """banque de france|amf|acpr|bpifrance|caisse des depots|ecb|eib|ebrd|imf|oecd|world bank|amundi|axa im|axa investment managers|natixis im|natixis investment managers|carmignac|ostrum|mirova|groupama am|groupama asset management|covea|mandarine gestion|moelis|centerview|perella weinberg|pwp|jefferies|nomura|mizuho|ca cib|credit agricole cib|natixis cib|lazard|evercore|houlihan|rothschild|ardian|eurazeo|oddo|cheuvreux|exane|stoxx|euronext|lch|clearstream|deutsche borse|cboe|moodys|fitch ratings|dbrs|scope ratings|ratings|bloomberg|msci|factset|morningstar|ice|nasdaq|cme group|tradeweb|marketaxess|broadridge|state street|northern trust|bny mellon|bny|cacéis|caceis|cacheis|societe generale securities services|sgss|bnp paribas securities services|apex group|citco|intertrust|ocorian|sgg|alter domus|vistra|cscglobal|aztec|crestbridge|tmf group|equiniti|computershare|link group|mufg investor services|gfi|oanda""".split("|")
-          names = sorted(set(n.strip() for n in names if n.strip()))
-          def slugs(n):
-              a = re.sub(r'[^a-z0-9]','',n.lower()); b = re.sub(r'[^a-z0-9]+','-',n.lower()).strip('-')
-              return sorted({a,b,a+'group'})
-          def get(u):
-              try: return requests.get(u, timeout=10, headers={'User-Agent':'Mozilla/5.0'})
-              except Exception: return None
-          def check(n):
-              out=[]
-              for s in slugs(n):
-                  r=get(f'https://boards-api.greenhouse.io/v1/boards/{s}/jobs')
-                  if r is not None and r.status_code==200:
-                      try: out.append(('greenhouse',s,len(r.json().get('jobs',[]))))
-                      except Exception: pass
-                  r=get(f'https://api.lever.co/v0/postings/{s}?mode=json')
-                  if r is not None and r.status_code==200:
-                      try: out.append(('lever',s,len(r.json())))
-                      except Exception: pass
-                  r=get(f'https://api.smartrecruiters.com/v1/companies/{s}/postings?limit=1')
-                  if r is not None and r.status_code==200:
-                      try:
-                          t=r.json().get('totalFound',0)
-                          if t: out.append(('smartrecruiters',s,t))
-                      except Exception: pass
-                  r=get(f'https://api.ashbyhq.com/posting-api/job-board/{s}')
-                  if r is not None and r.status_code==200:
-                      try: out.append(('ashby',s,len(r.json().get('jobs',[]))))
-                      except Exception: pass
-                  r=get(f'https://{s}.recruitee.com/api/offers')
-                  if r is not None and r.status_code==200:
-                      try: out.append(('recruitee',s,len(r.json().get('offers',[]))))
-                      except Exception: pass
-                  r=get(f'https://{s}.teamtailor.com/jobs.rss')
-                  if r is not None and r.status_code==200 and '<item>' in r.text:
-                      out.append(('teamtailor',s,r.text.count('<item>')))
-                  r=get(f'https://apply.workable.com/api/v1/widget/accounts/{s}')
-                  if r is not None and r.status_code==200:
-                      try: out.append(('workable',s,len(r.json().get('jobs',[]))))
-                      except Exception: pass
-              return n,out
-          with ThreadPoolExecutor(24) as p:
-              for n,o in p.map(check,names):
-                  if o: print("ATS", n,o)
-          PY
       - name: pages
         run: |
           python - <<'PY'
           import re
           from bs4 import BeautifulSoup
           from curl_cffi import requests as cr
-          from concurrent.futures import ThreadPoolExecutor
-          urls = """https://recrutement.banque-france.fr
-          https://www.banque-france.fr/fr/nous-connaitre/nous-rejoindre
-          https://www.amf-france.org/fr/lautorite/recrutement
-          https://recrutement.bpifrance.fr
-          https://www.bpifrance.fr/nous-connaitre/recrutement
-          https://recrutement.caissedesdepots.fr
-          https://www.caissedesdepots.fr/recrutement
-          https://talent.ecb.europa.eu
-          https://www.ecb.europa.eu/careers/html/index.en.html
-          https://erecruitment.eib.org
-          https://www.eib.org/en/about/jobs
-          https://jobs.ebrd.com
-          https://www.ebrd.com/careers.html
-          https://www.imf.org/en/About/Recruitment
-          https://www.oecd.org/en/about/careers.html
-          https://careers.amundi.com
-          https://www.axa-im.com/careers
-          https://www.im.natixis.com/en-institutional/careers
-          https://www.carmignac.com/fr-FR/nous-rejoindre
-          https://www.ostrum.com/fr/carrieres
-          https://www.mirova.com/en/careers
-          https://www.groupama-am.com/fr/nous-rejoindre
-          https://www.mandarine-gestion.com/nous-rejoindre
-          https://www.moelis.com/careers
-          https://www.centerviewpartners.com/careers
-          https://www.pwpartners.com/careers
-          https://www.jefferies.com/careers
-          https://www.nomuraholdings.com/careers
-          https://careers.ca-cib.com
+          urls = """https://www.recrutement.banque-france.fr/fr
+          https://www.moelis.com/careers/
+          https://talent.ecb.europa.eu/
           https://www.ca-cib.com/careers
-          https://www.mizuhogroup.com/emea/careers""".split()
-          def chk(u):
+          https://www.mandarine-gestion.com/FR/fr/carrieres
+          https://www.centerviewpartners.com/careers
+          https://pwpartners.com/careers/
+          https://www.jefferies.com/careers/
+          https://www.mizuhogroup.com/emea/careers
+          https://www.eib.org/en/about/careers/
+          https://www.caissedesdepots.fr/recrutement""".split()
+          for u in urls:
               try:
-                  r = cr.get(u, impersonate="chrome124", timeout=20, allow_redirects=True)
+                  r = cr.get(u, impersonate="chrome124", timeout=25)
               except Exception as e:
-                  return u+" ERR "+type(e).__name__
+                  print("ERR", u, type(e).__name__); continue
               t = r.text
+              print("==", u, r.status_code)
+              print("  workday:", sorted(set(re.findall(r"https?://[\w\.\-]+myworkdayjobs\.com[\w\-/\.]*", t)))[:6])
+              print("  oracle:", sorted(set(re.findall(r"https?://[\w\.\-]+oraclecloud\.[a-z]+[\w\-/\.]*", t)))[:4])
               soup = BeautifulSoup(t, "html.parser")
-              hints = sorted(set(m.lower() for m in re.findall(r"(myworkdayjobs\.com/[\w\-/]+|[\w\.\-]+\.fa\.[\w\.]*oraclecloud\.[a-z]+|phenom|smartrecruiters|greenhouse|lever\.co|taleo|successfactors|icims|avature|jobvite|teamtailor|workable|recruitee|ashby|digitalrecruiters|talentsoft|eightfold|jibe|brassring|welcometothejungle|jobteaser|beesite|cvmailuk|hrmdirect|peopleclick)", t, re.I)))
-              title = soup.title.get_text(strip=True)[:60] if soup.title else ""
-              return f"{u} -> {r.url[:70]} {r.status_code} {len(t)} | {title} | {hints[:6]}"
-          with ThreadPoolExecutor(12) as p:
-              for l in p.map(chk, urls): print("PAGE", l)
+              ext = sorted({a["href"][:110] for a in soup.find_all("a", href=True) if re.search(r"job|offre|search|recruit|apply|candidat|vacanc|opportunit|career", a["href"], re.I) and a["href"].startswith("http")})
+              print("  liens:", ext[:14])
           PY
