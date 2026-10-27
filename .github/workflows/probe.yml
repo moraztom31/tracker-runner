@@ -1,0 +1,30 @@
+name: probe
+on: workflow_dispatch
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q requests beautifulsoup4 curl_cffi
+      - name: pages
+        run: |
+          python - <<'PY'
+          import re
+          from bs4 import BeautifulSoup
+          from curl_cffi import requests as cr
+          urls = ["https://www.aurelbgc.com/fr/carrieres","https://www.aurelbgc.com/carrieres","https://www.aurelbgc.com","https://careers.bgcpartners.com","https://www.bgcg.com/careers","https://careers.bcg.com/search?q=stage","https://careers.bcg.com/global/en/search-results?keywords=intern","https://careers.bcg.com/global/en/search-results?keywords=stage&location=France","https://careers.bcg.com"]
+          for u in urls:
+              try:
+                  r = cr.get(u, impersonate="chrome124", timeout=25)
+              except Exception as e:
+                  print("ERR", u, type(e).__name__, str(e)[:80]); continue
+              t = r.text
+              soup = BeautifulSoup(t, "html.parser")
+              print("==", u, r.status_code, len(t), "|", (soup.title.get_text(strip=True)[:70] if soup.title else ""))
+              hints = sorted(set(re.findall(r"(workday|myworkdayjobs|phenom|smartrecruiters|greenhouse|lever\.co|taleo|successfactors|icims|oraclecloud|avature|jobvite|teamtailor|workable|recruitee|ashby|digitalrecruiters|talentsoft|eightfold|jibe|brassring)", t, re.I)))
+              print("   plateformes:", hints[:8])
+              links = [(a.get_text(" ", strip=True)[:50], a["href"][:100]) for a in soup.find_all("a", href=True) if re.search(r"job|offre|career|carri|stage|intern|recrut|apply", a["href"], re.I)]
+              for l in links[:12]: print("   ", l)
+          PY
