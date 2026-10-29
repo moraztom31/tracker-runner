@@ -1,0 +1,28 @@
+name: probe
+on: workflow_dispatch
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q requests beautifulsoup4 curl_cffi
+      - name: test
+        run: |
+          python - <<'PY'
+          import re
+          from bs4 import BeautifulSoup
+          from curl_cffi import requests as cr
+          u = "https://careers.societegenerale.com/offres-d-emploi/business-analyste-vente-produits-structures-26000KNA-fr"
+          for v in [u, u.replace("careers.societegenerale.com/", "careers.societegenerale.com/fr/"), "https://careers.societegenerale.com/fr/offres-d-emploi/business-analyste-vente-produits-structures-26000KNA-fr", "https://careers.societegenerale.com/en/job-offers/business-analyste-vente-produits-structures-26000KNA-en"]:
+              r = cr.get(v, impersonate="chrome124", timeout=30, allow_redirects=True)
+              t = BeautifulSoup(r.text, "html.parser")
+              print("GET", v[-70:], "->", r.status_code, r.url[-70:], "|", (t.title.get_text(strip=True)[:60] if t.title else ""))
+          r = cr.get("https://careers.societegenerale.com/fr/Technical/toutes-les-offres", impersonate="chrome124", timeout=30)
+          soup = BeautifulSoup(r.text, "html.parser")
+          hrefs = [a["href"] for a in soup.find_all("a", href=True) if "/offres-d-emploi/" in a["href"]]
+          print("liste:", r.status_code, len(hrefs))
+          print([h for h in hrefs if "26000KNA" in h or "produits-structures" in h])
+          print(hrefs[:6])
+          PY
