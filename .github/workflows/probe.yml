@@ -4,25 +4,33 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: moraztom31/TRacker
+          ref: claude/github-repository-access-aoguba
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          path: app
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -q requests beautifulsoup4 curl_cffi
+      - run: pip install -q -r app/requirements.txt
       - name: test
+        working-directory: app
         run: |
           python - <<'PY'
-          import re
-          from bs4 import BeautifulSoup
-          from curl_cffi import requests as cr
-          u = "https://careers.societegenerale.com/offres-d-emploi/business-analyste-vente-produits-structures-26000KNA-fr"
-          for v in [u, u.replace("careers.societegenerale.com/", "careers.societegenerale.com/fr/"), "https://careers.societegenerale.com/fr/offres-d-emploi/business-analyste-vente-produits-structures-26000KNA-fr", "https://careers.societegenerale.com/en/job-offers/business-analyste-vente-produits-structures-26000KNA-en"]:
-              r = cr.get(v, impersonate="chrome124", timeout=30, allow_redirects=True)
-              t = BeautifulSoup(r.text, "html.parser")
-              print("GET", v[-70:], "->", r.status_code, r.url[-70:], "|", (t.title.get_text(strip=True)[:60] if t.title else ""))
-          r = cr.get("https://careers.societegenerale.com/fr/Technical/toutes-les-offres", impersonate="chrome124", timeout=30)
-          soup = BeautifulSoup(r.text, "html.parser")
-          hrefs = [a["href"] for a in soup.find_all("a", href=True) if "/offres-d-emploi/" in a["href"]]
-          print("liste:", r.status_code, len(hrefs))
-          print([h for h in hrefs if "26000KNA" in h or "produits-structures" in h])
-          print(hrefs[:6])
+          import yaml, json, time
+          from tracker.sources import COLLECTORS
+          from tracker.main import drop_dead_links
+          from tracker.filters import matches
+          cfg = yaml.safe_load(open("config.yaml"))
+          c = next(x for x in cfg["sources"]["html_links"] if x["company"] == "Société Générale")
+          jobs = COLLECTORS["html_links"](c)
+          kept = [j for j in jobs if matches(j, cfg["filters"])]
+          t = time.time()
+          alive = drop_dead_links(jobs, c, {}, cfg["filters"], True)
+          kept2 = [j for j in alive if matches(j, cfg["filters"])]
+          print("lues", len(jobs), "gardées avant", len(kept), "après", len(kept2), f"({time.time()-t:.1f}s)")
+          gone = [j["title"] for j in kept if j["id"] not in {x["id"] for x in kept2}]
+          print("retirées:", len(gone)); [print("  -", g[:70]) for g in gone[:15]]
+          print("26000KNA présente après:", any("26000KNA" in j["url"] for j in alive))
           PY
