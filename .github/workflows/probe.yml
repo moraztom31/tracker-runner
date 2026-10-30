@@ -1,0 +1,47 @@
+name: probe
+on: workflow_dispatch
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: moraztom31/TRacker
+          ref: claude/github-repository-access-aoguba
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          path: app
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q -r app/requirements.txt beautifulsoup4
+      - name: bilan
+        working-directory: app
+        run: |
+          python - <<'PY'
+          import yaml, time, concurrent.futures as cf
+          from tracker.sources import COLLECTORS
+          from tracker.main import matches
+          cfg = yaml.safe_load(open("config.yaml"))
+          tasks = [(k, c) for k, l in cfg["sources"].items() for c in (l or [])]
+          def run(t):
+              k, c = t
+              t0 = time.time()
+              try:
+                  jobs = COLLECTORS[k](c)
+                  kept = sum(1 for j in jobs if matches(j, cfg["filters"]))
+                  return (k, c["company"], len(jobs), kept, None, time.time() - t0)
+              except Exception as e:
+                  return (k, c["company"], -1, 0, f"{type(e).__name__}: {str(e)[:110]}", time.time() - t0)
+          with cf.ThreadPoolExecutor(16) as p:
+              res = list(p.map(run, tasks))
+          print("TOTAL", len(res), "sources")
+          print("== ERREURS")
+          for k, n, a, b, e, d in res:
+              if e: print(f"  {n:<32} {k:<16} {e}")
+          print("== 0 OFFRE LUE")
+          for k, n, a, b, e, d in res:
+              if not e and a == 0: print(f"  {n:<32} {k}")
+          print("== LENTES (>40s)")
+          for k, n, a, b, e, d in res:
+              if d > 40: print(f"  {n:<32} {k} {d:.0f}s")
+          PY
