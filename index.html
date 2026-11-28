@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Offres de stage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #eef1f4; --panel: #ffffff; --ink: #14202b; --muted: #5d6b79;
+    --line: #d5dce3; --accent: #0b6b66; --accent-soft: #dff1ef; --focus: #1d4ed8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f1820; --panel: #17222d; --ink: #e6ecf1; --muted: #93a2b0; --line: #2a3a49; --accent: #4fc3bb; --accent-soft: #123a3a; --focus: #7aa2ff; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 "IBM Plex Sans", system-ui, sans-serif; }
+  main { max-width: 1040px; margin: 0 auto; padding: 32px 20px 64px; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 24px; margin-bottom: 20px; }
+  h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+  .meta { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+  .bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; }
+  input[type=search], select { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; min-height: 38px; }
+  input[type=search] { flex: 1 1 220px; }
+  label.chk { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); font-size: 14px; }
+  button { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; min-height: 38px; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  ul { list-style: none; margin: 0; padding: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  li { display: grid; grid-template-columns: 150px 1fr 170px 90px 140px; gap: 12px; align-items: center; padding: 12px 16px 12px 13px; border-bottom: 1px solid var(--line); border-left: 3px solid transparent; }
+  li:last-child { border-bottom: 0; }
+  li.new { border-left-color: var(--accent); background: var(--accent-soft); }
+  li.closed { opacity: .55; }
+  .co { font-weight: 600; }
+  .title a { color: var(--ink); text-decoration-color: var(--line); text-underline-offset: 3px; }
+  .title a:hover { text-decoration-color: var(--accent); }
+  .badge { color: var(--accent); font-weight: 600; font-size: 13px; margin-right: 6px; }
+  .ent { color: var(--muted); font-size: 13px; }
+  .loc, .age { color: var(--muted); font-size: 14px; }
+  .age { font-variant-numeric: tabular-nums; }
+  .banner { display: block; width: 100%; text-align: left; margin-bottom: 12px; padding: 12px 16px; background: var(--accent); color: #fff; border: 0; border-radius: 8px; font-weight: 600; cursor: pointer; }
+  .banner:hover { filter: brightness(1.08); }
+  .banner[hidden] { display: none; }
+  .manual { margin-bottom: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 16px; }
+  .manual summary { cursor: pointer; font-weight: 600; }
+  .manual-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .manual-links a { color: var(--ink); text-decoration: none; border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; font-size: 14px; }
+  .manual-links a:hover { border-color: var(--accent); color: var(--accent); }
+  .locf { position: relative; }
+  .locf > summary { list-style: none; cursor: pointer; font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; min-height: 38px; display: flex; align-items: center; gap: 6px; max-width: 280px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .locf > summary::-webkit-details-marker { display: none; }
+  .locf > summary::after { content: "▾"; color: var(--muted); margin-left: auto; padding-left: 6px; }
+  .locf[open] > summary, .locf > summary:hover { border-color: var(--accent); }
+  .locf.on > summary { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .locp { position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; width: min(680px, calc(100vw - 32px)); max-height: 65vh; overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.18); padding: 12px 14px; }
+  .locp-top { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .locp-top input { flex: 1; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; }
+  .locp-top button { min-height: 32px; padding: 4px 10px; font-size: 14px; }
+  .cty { padding: 8px 0; border-top: 1px solid var(--line); }
+  .cty:first-of-type { border-top: 0; }
+  .cty > label { font-weight: 600; }
+  .cty label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+  .cty .n { color: var(--muted); font-weight: 400; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .cities { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0 0 22px; font-size: 14px; }
+  .empty { padding: 40px 20px; text-align: center; color: var(--muted); background: var(--panel); border: 1px dashed var(--line); border-radius: 8px; }
+  @media (max-width: 760px) {
+    li { grid-template-columns: 1fr auto; row-gap: 4px; }
+    .title { grid-column: 1 / -1; order: 2; }
+    .loc { order: 3; } .age { order: 1; text-align: right; } .co { order: 1; }
+    .st { grid-column: 1 / -1; order: 4; }
+  }
+  #lock[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div id="lock" hidden style="position:fixed;inset:0;z-index:99;background:var(--bg);display:flex;align-items:center;justify-content:center">
+  <form id="lockform" style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:24px;display:flex;flex-direction:column;gap:10px;min-width:260px">
+    <strong>Accès protégé</strong>
+    <input id="pw" type="password" placeholder="Mot de passe" autocomplete="current-password" style="font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px">
+    <button style="font:inherit;padding:8px;border-radius:6px;border:0;background:var(--accent);color:#fff;cursor:pointer">Entrer</button>
+    <span id="lockerr" style="color:#c0392b;font-size:13px" aria-live="polite"></span>
+  </form>
+</div>
+<main>
+  <header>
+    <h1>Offres de stage</h1>
+    <div class="meta" id="meta" aria-live="polite">Chargement…</div>
+  </header>
+  <details class="manual">
+    <summary>À vérifier à la main (sites non couverts par le robot)</summary>
+    <div class="manual-links">
+      <a href="https://www.nomura.com/careers/early-careers/internship-programs/" target="_blank" rel="noopener noreferrer">Nomura</a>
+      <a href="https://career5.successfactors.eu/career?company=banquepict" target="_blank" rel="noopener noreferrer">Pictet</a>
+      <a href="https://www.citadel.com/careers/open-opportunities/students/" target="_blank" rel="noopener noreferrer">Citadel / Citadel Securities</a>
+      <a href="https://www.deshaw.com/careers/choose-your-path" target="_blank" rel="noopener noreferrer">D. E. Shaw</a>
+      <a href="https://www.mizuhogroup.com/careers" target="_blank" rel="noopener noreferrer">Mizuho</a>
+      <a href="https://www.jobteaser.com/fr/companies/oddobhf/job-offers" target="_blank" rel="noopener noreferrer">JobTeaser (Oddo BHF, autres)</a>
+    </div>
+  </details>
+  <div class="bar">
+    <input type="search" id="q" placeholder="Rechercher un poste, une entreprise, une ville" aria-label="Rechercher">
+    <details class="locf" id="locf">
+      <summary id="locsum">Tous les lieux</summary>
+      <div class="locp">
+        <div class="locp-top">
+          <input type="search" id="locq" placeholder="Filtrer les pays et villes" aria-label="Filtrer les lieux">
+          <button type="button" id="locclear">Effacer</button>
+        </div>
+        <div id="loclist"></div>
+      </div>
+    </details>
+    <select id="co" aria-label="Entreprise"><option value="">Toutes les entreprises</option></select>
+    <select id="st" aria-label="Statut">
+      <option value="">Tous les statuts</option>
+      <option value="todo">À postuler</option>
+      <option value="applied">Postulé</option>
+      <option value="followup">Relancé</option>
+      <option value="interview">Entretien</option>
+      <option value="rejected">Refus</option>
+      <option value="ignored">Ignoré</option>
+    </select>
+    <label class="chk"><input type="checkbox" id="onlynew"> Nouvelles uniquement</label>
+    <label class="chk"><input type="checkbox" id="closed"> Afficher les clôturées</label>
+    <button id="seen" type="button">Tout marquer comme vu</button>
+    <button id="notif" type="button" hidden>Activer les alertes</button>
+  </div>
+  <button id="banner" type="button" class="banner" hidden></button>
+  <ul id="list"></ul>
+  <div class="empty" id="empty" hidden>Aucune offre ne correspond à ces filtres.</div>
+</main>
+<script>
+const STATUS = {"": "Statut", todo: "À postuler", applied: "Postulé", followup: "Relancé", interview: "Entretien", rejected: "Refus", ignored: "Ignoré"};
+const $ = (id) => document.getElementById(id);
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+let jobs = [], statuses = store.get("statuses", {}), lastSeen = store.get("lastSeen", null);
+
+function ago(iso) {
+  const m = Math.max(0, Math.round((Date.now() - new Date(iso)) / 60000));
+  if (m < 1) return "à l'instant";
+  if (m < 60) return m + " min";
+  if (m < 1440) return Math.floor(m / 60) + " h";
+  return Math.floor(m / 1440) + " j";
+}
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+// Lieux : les sites écrivent les villes de mille façons ("La Defense, France · Stage", "LONDON, United Kingdom",
+// "Canary Wharf"...). On les ramène à une liste pays > ville. Clés en minuscules sans accents.
+const PLACES = [
+  ["France", "france|fra", [
+    ["Paris / Île-de-France", "paris|la defense|ile-de-france|montrouge|courbevoie|puteaux|nanterre|boulogne-billancourt|saint-denis|fontenay-sous-bois|villejuif|saint-quentin-en-yvelines|levallois|neuilly|issy-les-moulineaux|guyancourt|creil"],
+    ["Lyon", "lyon"], ["Marseille", "marseille"], ["Lille", "lille"], ["Toulouse", "toulouse"], ["Nantes", "nantes"], ["Strasbourg", "strasbourg"],
+    ["Bordeaux", "bordeaux|talence|le-bouscat|merignac"], ["Nice / Côte d'Azur", "nice|cannes|le-cannet|st-martin-du-var|sophia antipolis"],
+    ["Tours", "tours"], ["Limoges", "limoges"], ["Dijon", "dijon"], ["Chambéry", "chambery|la-motte-servolex"]]],
+  ["Royaume-Uni", "united kingdom|royaume-uni|england|scotland|uk|gbr", [
+    ["Londres", "london|londres|canary wharf"], ["Glasgow", "glasgow"], ["Édimbourg", "edinburgh"], ["Manchester", "manchester"],
+    ["Knutsford", "knutsford"], ["Northampton", "northampton"], ["Chester", "chester"], ["Bromley", "bromley"], ["Bristol", "bristol"], ["Birmingham", "birmingham"]]],
+  ["Suisse", "switzerland|suisse|che", [["Genève", "geneva|geneve|genf"], ["Zurich", "zurich"], ["Nyon", "nyon"], ["Lugano", "lugano"], ["Bâle", "basel|bale"], ["Lausanne", "lausanne"]]],
+  ["Luxembourg", "luxembourg|lux", [["Luxembourg", "luxembourg"]]],
+  ["Monaco", "monaco", [["Monaco", "monaco"]]],
+  ["Belgique", "belgium|belgique", [["Bruxelles", "bruxelles|brussels|brussel"], ["Gand", "gent|ghent"], ["Anvers", "antwerp|antwerpen|anvers"]]],
+  ["Pays-Bas", "netherlands|pays-bas|nld", [["Amsterdam", "amsterdam"], ["La Haye", "the hague|den haag"], ["Utrecht", "utrecht"], ["Rotterdam", "rotterdam"], ["Zwolle", "zwolle"], ["Nimègue", "nijmegen"]]],
+  ["Allemagne", "germany|allemagne|deutschland|deu", [["Francfort", "frankfurt|francfort"], ["Munich", "munich|munchen"], ["Berlin", "berlin"], ["Hambourg", "hamburg"], ["Düsseldorf", "dusseldorf"]]],
+  ["Italie", "italy|italie|ita", [["Milan", "milan|milano"], ["Rome", "rome|roma"], ["Turin", "turin|torino"]]],
+  ["Espagne", "spain|espagne|esp", [["Madrid", "madrid"], ["Barcelone", "barcelona|barcelone"]]],
+  ["Portugal", "portugal", [["Lisbonne", "lisbon|lisboa|lisbonne"], ["Porto", "porto"]]],
+  ["Irlande", "ireland|irlande|irl", [["Dublin", "dublin"]]],
+  ["Suède", "sweden|suede", [["Stockholm", "stockholm"]]],
+  ["Danemark", "denmark|danemark", [["Copenhague", "copenhagen"]]],
+  ["Pologne", "poland|pologne", [["Varsovie", "warsaw|warszawa"], ["Cracovie", "krakow"]]],
+  ["Slovaquie", "slovakia", [["Bratislava", "bratislava"]]],
+  ["Bulgarie", "bulgaria", [["Sofia", "sofia"]]],
+  ["Turquie", "turkey|turquie|turkiye", [["Istanbul", "istanbul"]]],
+  ["Guernesey", "guernsey", [["St Peter Port", "st peter port"]]],
+  ["États-Unis", "united states|usa|ny|nyc|tennessee|texas|california|florida|illinois|massachusetts|connecticut", [
+    ["New York", "new york|nyc|new jersey|jersey city|madison ave|stamford"], ["Chicago", "chicago"], ["Boston", "boston"],
+    ["San Francisco / Bay Area", "san francisco|palo alto|menlo park"], ["Los Angeles", "los angeles|newport beach"], ["Seattle", "seattle"],
+    ["Miami", "miami"], ["Houston", "houston"], ["Dallas", "dallas|irving"], ["Austin", "austin"], ["Atlanta", "atlanta"], ["Charlotte", "charlotte"],
+    ["Tampa", "tampa"], ["Baltimore", "baltimore"], ["Phoenix", "phoenix|tempe"], ["Denver", "denver"], ["Minneapolis", "minneapolis|edina"],
+    ["Washington", "washington"], ["Philadelphie", "philadelphia"], ["Pennington", "pennington"]]],
+  ["Canada", "canada", [["Toronto", "toronto"], ["Montréal", "montreal"]]],
+  ["Mexique", "mexico|mexique", [["Mexico", "mexico city"]]],
+  ["Brésil", "brazil|bresil", [["São Paulo", "sao paulo"]]],
+  ["Chili", "chile|chili", [["Santiago", "santiago"]]],
+  ["Émirats arabes unis", "united arab emirates|uae", [["Dubaï", "dubai"], ["Abu Dhabi", "abu dhabi"]]],
+  ["Qatar", "qatar", [["Doha", "doha"]]],
+  ["Arabie saoudite", "saudi arabia", [["Riyad", "riyadh"]]],
+  ["Israël", "israel", [["Tel Aviv", "tel aviv"]]],
+  ["Afrique du Sud", "south africa", [["Johannesburg", "johannesburg"]]],
+  ["Côte d'Ivoire", "cote d'ivoire|ivory coast", [["Abidjan", "abidjan"]]],
+  ["Singapour", "singapore|singapour", [["Singapour", "singapore|singapour"]]],
+  ["Hong Kong", "hong kong", [["Hong Kong", "hong kong"]]],
+  ["Chine", "china|chine", [["Shanghai", "shanghai"], ["Pékin", "beijing"]]],
+  ["Japon", "japan|japon|jpn", [["Tokyo", "tokyo"]]],
+  ["Corée du Sud", "korea|coree", [["Séoul", "seoul"]]],
+  ["Inde", "india|inde", [["Bangalore", "bengaluru|bangalore"], ["Mumbai", "mumbai"], ["Pune", "pune"], ["Gurgaon", "gurgaon|gurugram"], ["Gift City", "gift city"], ["Hyderabad", "hyderabad"], ["Chennai", "chennai"]]],
+  ["Malaisie", "malaysia", [["Kuala Lumpur", "kuala lumpur"]]],
+  ["Indonésie", "indonesia", [["Jakarta", "jakarta"]]],
+  ["Philippines", "philippines", [["Manille", "manila"]]],
+  ["Australie", "australia|australie", [["Sydney", "sydney"], ["Melbourne", "melbourne"]]],
+];
+const OTHER = "Autre / non précisé";
+const norm = (t) => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+const wordRe = (alts) => new RegExp("(?:^|[^a-z0-9])(?:" + alts + ")(?![a-z0-9])");
+const PLACE_RE = PLACES.map(([country, words, cities]) => ({
+  country, re: wordRe(words + "|" + cities.map((c) => c[1]).join("|")),
+  cities: cities.map(([name, w]) => ({ name, re: wordRe(w) }))
+}));
+function tagPlaces(text) {
+  const t = norm(text), out = [];
+  PLACE_RE.forEach((p) => {
+    if (!p.re.test(t)) return;
+    out.push(p.country);
+    p.cities.forEach((c) => { if (c.re.test(t)) out.push(p.country + "|" + c.name); });
+  });
+  return out;
+}
+// Lieu d'abord ; le titre seulement si le lieu ne dit rien ("Analyst - 2027 - Seoul").
+function placesOf(j) {
+  if (!j._p) {
+    let p = tagPlaces(j.location);
+    if (!p.length) p = tagPlaces(j.title);
+    j._p = new Set(p.length ? p : [OTHER]);
+  }
+  return j._p;
+}
+let locSel = new Set(store.get("locs", []));
+function matchLoc(j) {
+  if (!locSel.size) return true;
+  for (const k of placesOf(j)) if (locSel.has(k)) return true;
+  return false;
+}
+function saveLocs() { store.set("locs", [...locSel]); }
+function locLabel() {
+  const names = [...locSel].map((k) => k.includes("|") ? k.split("|")[1] : k);
+  $("locsum").textContent = !names.length ? "Tous les lieux" : names.length <= 2 ? names.join(", ") : names.length + " lieux";
+  $("locf").classList.toggle("on", names.length > 0);
+}
+function fillLocations() {
+  const pool = jobs.filter((j) => $("closed").checked || j.active), cnt = {};
+  pool.forEach((j) => placesOf(j).forEach((k) => { cnt[k] = (cnt[k] || 0) + 1; }));
+  const q = norm($("locq").value.trim()), box = $("loclist");
+  box.replaceChildren();
+  const checkbox = (key, text, n, disabled) => {
+    const lab = el("label"), cb = el("input");
+    cb.type = "checkbox"; cb.checked = locSel.has(key) || disabled; cb.disabled = disabled;
+    cb.onchange = () => {
+      if (cb.checked) {
+        locSel.add(key);
+        if (!key.includes("|")) [...locSel].forEach((k) => { if (k.startsWith(key + "|")) locSel.delete(k); });
+      } else locSel.delete(key);
+      saveLocs(); locLabel(); fillLocations(); render();
+    };
+    lab.append(cb, document.createTextNode(text + " "), el("span", "n", String(n)));
+    return lab;
+  };
+  const countries = PLACES.map(([c, , cities]) => [c, cities]).filter(([c]) => cnt[c]);
+  countries.push([OTHER, []]);
+  countries.sort((a, b) => (a[0] === OTHER) - (b[0] === OTHER) || (cnt[b[0]] || 0) - (cnt[a[0]] || 0));
+  countries.forEach(([c, cities]) => {
+    if (!cnt[c]) return;
+    const hits = cities.filter(([v]) => cnt[c + "|" + v]).sort((a, b) => cnt[c + "|" + b[0]] - cnt[c + "|" + a[0]]);
+    const showAll = !q || norm(c).includes(q);
+    const shown = showAll ? hits : hits.filter(([v]) => norm(v).includes(q));
+    if (!showAll && !shown.length) return;
+    const block = el("div", "cty"), whole = locSel.has(c);
+    block.append(checkbox(c, c, cnt[c], false));
+    // Une seule ville égale au pays (Singapour, Hong Kong...) : inutile de la répéter.
+    const sub = shown.filter(([v]) => !(hits.length === 1 && cnt[c + "|" + v] === cnt[c]));
+    if (sub.length) {
+      const wrap = el("div", "cities");
+      sub.forEach(([v]) => wrap.append(checkbox(c + "|" + v, v, cnt[c + "|" + v], whole)));
+      block.append(wrap);
+    }
+    box.append(block);
+  });
+}
+
+function render() {
+  const q = $("q").value.trim().toLowerCase(), co = $("co").value, st = $("st").value;
+  const onlyNew = $("onlynew").checked, showClosed = $("closed").checked;
+  const rows = jobs.filter((j) => {
+    if (!showClosed && !j.active) return false;
+    if (co && j.company !== co) return false;
+    if (st && (statuses[j.id] || "") !== st) return false;
+    if (onlyNew && !isNew(j)) return false;
+    if (!matchLoc(j)) return false;
+    return !q || (j.title + " " + j.company + " " + (j.location || "")).toLowerCase().includes(q);
+  });
+  const list = $("list"); list.replaceChildren();
+  rows.forEach((j) => {
+    const li = el("li", (isNew(j) ? "new " : "") + (j.active ? "" : "closed"));
+    li.append(el("div", "co", j.company));
+    const t = el("div", "title");
+    if (isNew(j)) t.append(el("span", "badge", "Nouveau"));
+    const a = el("a", null, j.title); a.href = j.url; a.target = "_blank"; a.rel = "noopener noreferrer";
+    t.append(a);
+    if (j.entity) t.append(el("div", "ent", j.entity));
+    li.append(t);
+    li.append(el("div", "loc", j.location || "Lieu non précisé"));
+    li.append(el("div", "age", j.active ? ago(j.first_seen) : "clôturée"));
+    const sel = el("select", "st"); sel.setAttribute("aria-label", "Statut de " + j.title);
+    Object.entries(STATUS).forEach(([v, l]) => { const o = el("option", null, l); o.value = v; sel.append(o); });
+    sel.value = statuses[j.id] || "";
+    sel.onchange = () => { statuses[j.id] = sel.value; store.set("statuses", statuses); };
+    li.append(sel); list.append(li);
+  });
+  $("empty").hidden = rows.length > 0; list.hidden = rows.length === 0;
+}
+const freshIds = new Set();  // offres annoncées par la bannière : badgées et affichées par « Nouvelles uniquement » même si la date de dernière visite est plus récente
+function isNew(j) { return j.active && !statuses[j.id] && (freshIds.has(j.id) || (lastSeen ? j.first_seen > lastSeen : false)); }
+
+let known = null, generatedAt = null;
+const baseTitle = document.title;
+
+function fillCompanies() {
+  const sel = $("co"), cur = sel.value;
+  sel.replaceChildren(Object.assign(el("option", null, "Toutes les entreprises"), { value: "" }));
+  [...new Set(jobs.map((j) => j.company))].sort().forEach((c) => { const o = el("option", null, c); o.value = c; sel.append(o); });
+  sel.value = cur;
+}
+function updateMeta() {
+  const open = jobs.filter((j) => j.active).length;
+  const fresh = jobs.filter(isNew).length;
+  $("meta").textContent = open + " offres ouvertes · dernière nouveauté il y a " + ago(generatedAt);
+  document.title = fresh ? "(" + fresh + ") " + baseTitle : baseTitle;
+}
+function beep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.value = 880; g.gain.setValueAtTime(0.15, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.4);
+  } catch (e) {}
+}
+function alertNew(added) {
+  const b = $("banner");
+  b.textContent = added.length === 1
+    ? "Nouvelle offre : " + added[0].company + " · " + added[0].title
+    : added.length + " nouvelles offres. Afficher";
+  b.hidden = false;
+  beep();
+  if ("Notification" in window && Notification.permission === "granted") {
+    added.slice(0, 5).forEach((j) => {
+      const n = new Notification(j.company + " : nouveau stage", { body: j.title, tag: j.id });
+      n.onclick = () => { window.focus(); window.open(j.url, "_blank", "noopener"); };
+    });
+  }
+}
+
+const b64 = (t) => Uint8Array.from(atob(t), (c) => c.charCodeAt(0));
+let keyCache = null;
+async function decrypt(enc, pw) {
+  const ck = enc.salt + pw;
+  if (!keyCache || keyCache.id !== ck) {
+    const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveKey"]);
+    const key = await crypto.subtle.deriveKey({ name: "PBKDF2", salt: b64(enc.salt), iterations: enc.iter, hash: "SHA-256" },
+      base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+    keyCache = { id: ck, key };
+  }
+  const buf = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64(enc.iv) }, keyCache.key, b64(enc.ct));
+  return JSON.parse(new TextDecoder().decode(buf));
+}
+function askPassword(msg) {
+  $("lock").hidden = false; $("lockerr").textContent = msg || ""; $("pw").focus();
+}
+$("lockform").addEventListener("submit", (e) => {
+  e.preventDefault();
+  store.set("pw", $("pw").value); $("pw").value = ""; $("lock").hidden = true; generatedAt = null; load();
+});
+
+async function load() {
+  try {
+    const r = await fetch("jobs.enc?t=" + Date.now(), { cache: "no-store" });
+    const enc = await r.json();
+    const pw = store.get("pw", "");
+    if (!pw) { askPassword(); return; }
+    let d;
+    try { d = await decrypt(enc, pw); }
+    catch (e) { store.set("pw", ""); askPassword("Mot de passe incorrect"); return; }
+    if (d.generated_at === generatedAt) { updateMeta(); return; }
+    const prevGen = generatedAt;
+    generatedAt = d.generated_at; jobs = d.jobs;
+    const ids = new Set(jobs.map((j) => j.id));
+    if (known) {
+      // alerte seulement pour une vraie nouveauté (vue depuis le dernier chargement) dans un lieu non masqué ; pas pour un rattrapage d'historique
+      const added = jobs.filter((j) => j.active && !known.has(j.id) && matchLoc(j) && (!prevGen || j.first_seen > prevGen));
+      if (added.length) { added.forEach((j) => freshIds.add(j.id)); alertNew(added); }
+    }
+    known = ids;
+    fillCompanies(); fillLocations(); locLabel(); updateMeta(); render();
+  } catch (e) {
+    if (!known) $("meta").textContent = "Impossible de charger les offres. Lance d'abord le workflow « scan » sur GitHub.";
+  }
+}
+load();
+setInterval(load, 60000);
+
+$("banner").onclick = () => { $("onlynew").checked = true; $("banner").hidden = true; render(); window.scrollTo({ top: 0 }); };
+if ("Notification" in window && Notification.permission === "default") {
+  $("notif").hidden = false;
+  $("notif").onclick = () => Notification.requestPermission().then((p) => { $("notif").hidden = p !== "default"; });
+}
+
+["q", "co", "st", "onlynew", "closed"].forEach((id) => $(id).addEventListener("input", render));
+$("closed").addEventListener("input", fillLocations);
+$("locq").addEventListener("input", fillLocations);
+$("locclear").onclick = () => { locSel.clear(); saveLocs(); locLabel(); fillLocations(); render(); };
+document.addEventListener("click", (e) => { if (!$("locf").contains(e.target)) $("locf").open = false; });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && $("locf").open) { $("locf").open = false; $("locsum").focus(); } });
+$("seen").onclick = () => { lastSeen = new Date().toISOString().replace(/\.\d+Z$/, "Z"); store.set("lastSeen", lastSeen); freshIds.clear(); $("banner").hidden = true; render(); updateMeta(); };
+if (!lastSeen) { lastSeen = new Date().toISOString().replace(/\.\d+Z$/, "Z"); store.set("lastSeen", lastSeen); }
+</script>
+</body>
+</html>
